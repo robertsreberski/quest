@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Quests"
+  short_description: "Turn an ask into evidence-checkable quest contracts"
+  default_prompt: "Use $plan to decompose this ask into quest contracts via `quest create`."

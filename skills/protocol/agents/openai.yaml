@@ -1,0 +1,4 @@
+interface:
+  display_name: "Quest Protocol"
+  short_description: "The quest loop rules, checkpoint format, and vocabulary"
+  default_prompt: "Use $protocol to look up the exact quest loop rule before acting."

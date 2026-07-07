@@ -1,14 +1,14 @@
 ---
 id: 4
 title: Skills and agents, dual-harness
-status: todo
+status: in_progress
 priority: p1
 worker: claude
 model: inherit
 max_iterations: 8
 depends_on: [2]
 created: 2026-07-07T13:12:31Z
-updated: 2026-07-07T13:12:31Z
+updated: 2026-07-07T13:36:46Z
 ---
 
 # Skills and agents, dual-harness
