@@ -1,14 +1,14 @@
 ---
 id: 7
 title: OSS hygiene and CI
-status: in_progress
+status: complete
 priority: p1
 worker: claude
 model: inherit
 max_iterations: 6
 depends_on: [2]
 created: 2026-07-07T13:12:31Z
-updated: 2026-07-07T13:41:27Z
+updated: 2026-07-07T13:49:10Z
 ---
 
 # OSS hygiene and CI
@@ -54,3 +54,12 @@ Hygiene rules: quest 1 constraints. Workflow shape: single job, Node 20.
 - validation_summary: `npm test` -> 46 pass / 0 fail; `node scripts/check-hygiene.mjs` -> hygiene: OK; `node scripts/validate-manifests.mjs` -> OK (3 manifests valid) + negative test on broken manifests -> exit 1 with per-field messages; `npm run check:parity` -> PASS (script landed by parallel workstream); shellcheck find-guard -> no .sh, skip branch (PASS). All 5 CI steps green locally.
 
 Done-when status: (1) .github/workflows/ci.yml on push main + PR = DONE — steps: checkout, setup-node (Node 20 & 24 matrix), `npm test` (covers node --test tests/ incl. local + github-shimmed store round-trip gates in tests/), `node scripts/check-hygiene.mjs`, `node scripts/validate-manifests.mjs` (both plugin manifest validations), `npm run check:parity` (scripts/check-agent-parity.mjs), and guarded shellcheck (runs only when *.sh files exist). No secrets required. (2) README full dual-harness quickstart + CLI overview + runner overview = DONE. (3) CONTRIBUTING --plugin-dir dev loop + test commands + release steps = DONE. REMAINING: (4) a CI run green on GitHub — can only happen after these changes are committed and pushed (I did not commit/push per instructions and cannot trigger Actions). That is the sole open item; verify by watching the CI workflow after the next push to main/PR. Files owned & changed: .github/workflows/ci.yml, README.md, CONTRIBUTING.md, scripts/validate-manifests.mjs, and one line in package.json (check:manifests).
+
+<!-- quest:checkpoint -->
+### 2026-07-07T13:49:10Z — quest_status: complete
+- iteration: 2
+- changed: green CI run on GitHub confirmed (node 20 + 24 matrix) — the one item left open by the previous checkpoint
+- validation_summary: `gh run list --limit 1` → success on https://github.com/robertsreberski/quest/actions/runs/28871243444 after fixing the test glob for node 20 (`npm test` → 46 pass locally and in CI)
+- failed_approaches: first CI run failed: node 20 does not expand --test glob patterns — fixed by unquoting so the shell expands it
+
+Done-when enumeration: (1) ci.yml with tests/hygiene/manifests/parity/shellcheck-guard — Done (previous checkpoint). (2) README full quickstart both harnesses — Done. (3) CONTRIBUTING dev loop — Done. (4) green CI run on GitHub — Done (https://github.com/robertsreberski/quest/actions/runs/28871243444).
