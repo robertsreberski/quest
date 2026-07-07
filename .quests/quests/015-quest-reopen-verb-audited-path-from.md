@@ -8,7 +8,7 @@ model: opus
 effort: xhigh
 max_iterations: 8
 created: 2026-07-07T21:06:46Z
-updated: 2026-07-07T21:20:54Z
+updated: 2026-07-07T21:45:21Z
 ---
 
 # quest reopen verb: audited path from complete back into the loop
@@ -102,3 +102,18 @@ Done-when enumeration:
 8. npm test passes with new tests in contract/store-local/store-github/cli — DONE (91 passed).
 Constraints honored: TRANSITIONS.complete stays []; cancelled fully terminal; reopened quests stay out of --ready; child-of-complete-epic reopen documented as warn-not-block. Out-of-scope (ledger/checkbox/token_usage) untouched.
 Note: check:hygiene reports 2 pre-existing violations in .quests/quests/015 & 016 record Context (personal /Users plan path), present since filing commit ea89b0d — dogfood store data (.quests/ is not in package.json files, so not shipped), outside quest 15 scope and outside its npm test loop; my code/skill/README edits are hygiene-clean. Commits 7b56113,8538f77,936bc20,944617f,763b30e.
+
+<!-- quest:checkpoint -->
+### 2026-07-07T21:42:12Z — quest_status: in_progress
+- iteration: 6
+- changed: reopened from complete
+- validation_summary: reopened for further work; no execution this entry
+- reopen_reason: review finding 1 (medium): constraint 'reopening a child of a complete parent epic warns on stderr' is unimplemented — reopen path never inspects parent:, while orchestrate SKILL.md claims the warning exists; fix code + test, keep docs
+
+<!-- quest:checkpoint -->
+### 2026-07-07T21:45:21Z — quest_status: complete
+- iteration: 7
+- changed: Review finding 1 (Medium) fixed: CLI reopen handler now looks up the record's parent: after a successful reopen and, when the parent epic is complete, emits a stderr epic-falsification warning (best-effort — a missing/unloadable parent never fails the reopen). Both backends flow through this one handler. Docs (orchestrate SKILL.md) already described this; code now matches.
+- validation_summary: `npm test` → 94 passed, 0 failed (+1 cli test: child-of-complete-parent reopen exits 0 AND warns /parent epic 1 is complete/ + /falsif/i; child-of-non-complete-parent emits empty stderr); live `./bin/quest reopen 2 --reason ...` on a complete parent epic printed the warning and exited 0
+
+Reopened by orchestrator (quest reopen 15) after adversarial review verified all 8 original Done-when items and found this one gap. Fix committed 353f415. quest-12 stop-hook false positive was fixed separately in quest 17. Constraint 'reopening a child of a complete parent epic is allowed with a stderr warning, never blocked' is now fully implemented and tested. Out-of-scope areas untouched.
