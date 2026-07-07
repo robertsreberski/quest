@@ -1,0 +1,28 @@
+Create a new quest (the only way records are born)
+
+Usage: quest create --title T --objective O --done-when D --validation V [more flags]
+
+Flags:
+  --title <t>           quest title (required)
+  --objective <o>       one concrete outcome, ≤3 sentences (required)
+  --done-when <d>       evidence-checkable condition; repeatable (≥1 required)
+  --validation <cmds>   exact commands run each iteration (required)
+  --constraint <c>      hard guardrail; repeatable
+  --milestone <m>       discrete testable unit; repeatable
+  --context <text>      pointers: files + symbols, related quests
+  --out-of-scope <o>    explicit exclusion; repeatable
+  --parent <id>         epic this quest belongs to
+  --depends-on <ids>    comma-separated quest ids that must complete first
+  --worker <w>          claude (default) or codex
+  --model <m>           worker model; default inherit (store config)
+  --effort <e>          worker reasoning effort (e.g. xhigh)
+  --max-iterations <n>  session budget (default from config)
+  --max-cost <usd>      cost budget for headless runs
+  --priority <p>        p0 | p1 | p2 (default from config)
+
+Example:
+  quest create --title "Add dark mode" \
+    --objective "Settings page offers a dark theme that persists." \
+    --done-when "toggling theme updates the UI and survives reload" \
+    --done-when "`npm test` passes including new theme tests" \
+    --validation "npm test"

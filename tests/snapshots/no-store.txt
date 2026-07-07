@@ -1,0 +1,7 @@
+No quest store found (searched for .quests/ from here upward).
+
+Get started:
+  quest init            create a local store here
+  quest init --backend github --repo owner/name
+
+Then: `quest create --help` shows how to author your first quest.

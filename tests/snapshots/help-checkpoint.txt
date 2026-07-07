@@ -1,0 +1,19 @@
+Record iteration evidence and drive the quest's status
+
+Usage: quest checkpoint <id> --status <s> --summary <what> --validation <evidence> [flags]
+
+Flags:
+  --status <s>         in_progress | complete | blocked (required)
+  --summary <text>     what changed, one line per milestone touched (required)
+  --validation <text>  commands + observed results; complete requires backticked commands (required)
+  --iteration <n>      iteration number (default: previous + 1)
+  --pr <url>           pull request for this quest's work
+  --sha <sha>          HEAD sha the evidence was gathered at
+  --failed <text>      approaches that failed, with reasons
+  --expansion <text>   rationale when scope compatibly expanded
+  --note <text>        free-form trailing note
+
+Example:
+  quest checkpoint 3 --status complete \
+    --summary "M2 done — theme persistence via localStorage" \
+    --validation "`npm test` → 42 passed, 0 failed"

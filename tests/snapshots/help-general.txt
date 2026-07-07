@@ -1,0 +1,22 @@
+quest — goal-loop engineering for coding agents
+
+Work is planned as quests: contracts with an Objective, evidence-checkable
+"Done when" items, and a Validation loop. Agents (or you) work them in
+iterations that end in checkpoints; `quest-run` drives headless workers.
+
+Commands:
+  quest init        Create a quest store (.quests/) in the current directory
+  quest create      Create a new quest (the only way records are born)
+  quest list        List quests (filter by status, parent, or readiness)
+  quest show        Show a quest record in full
+  quest start       Mark a quest in_progress (todo → in_progress)
+  quest checkpoint  Record iteration evidence and drive the quest's status
+  quest cancel      Cancel a quest (terminal; reason is recorded)
+  quest edit        Compatibly expand a quest (additions only; anchors are immutable)
+  quest lint        Check records against the contract spec
+  quest amend       Append a numbered protocol amendment (retro output)
+  quest protocol    Print the loop protocol + this store's local amendments
+  quest runs        Show headless runner activity (from .quests/runs.ndjson)
+
+Run `quest <command> --help` for flags and a copy-pasteable example.
+Headless workers: see `quest-run --help`.

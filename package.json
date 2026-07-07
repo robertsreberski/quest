@@ -6,7 +6,7 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "test": "node --test tests/",
+    "test": "node --test \"tests/*.test.mjs\"",
     "check:parity": "node scripts/check-agent-parity.mjs",
     "check:hygiene": "node scripts/check-hygiene.mjs"
   },
