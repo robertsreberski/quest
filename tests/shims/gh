@@ -1,0 +1,155 @@
+#!/usr/bin/env node
+// Test double for the `gh` CLI. Simulates just the subcommands the GitHub quest
+// backend (lib/store-github.mjs) uses, persisting issue state to the JSON file at
+// $GH_SHIM_STATE so a whole lifecycle round-trips across process invocations.
+//
+// Knobs (env): GH_SHIM_FAIL_AUTH=1 makes `gh auth status` exit 1 with stderr.
+//
+// NB: this repo is "type": "module", so an extensionless file executed by Node
+// is loaded as ESM — hence `import`, not `require`.
+
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+
+const argv = process.argv.slice(2);
+const statePath = process.env.GH_SHIM_STATE;
+
+function loadState() {
+  if (statePath && existsSync(statePath)) return JSON.parse(readFileSync(statePath, "utf8"));
+  return { nextNumber: 1, clock: 0, issues: {} };
+}
+function saveState(s) {
+  if (statePath) writeFileSync(statePath, JSON.stringify(s));
+}
+function fail(msg) {
+  process.stderr.write(msg + "\n");
+  process.exit(1);
+}
+function readStdin() {
+  try {
+    return readFileSync(0, "utf8");
+  } catch {
+    return "";
+  }
+}
+function notFound(id) {
+  fail(`GraphQL: Could not resolve to an Issue with the number of ${id}. (repository.issue)`);
+}
+
+// Minimal flag parser: `--key value`, repeatable `--label/--add-label/--remove-label`,
+// boolean `--force`, everything else positional.
+function parseFlags(args) {
+  const flags = {};
+  const multi = { label: [], "add-label": [], "remove-label": [] };
+  const pos = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a.startsWith("--")) {
+      const key = a.slice(2);
+      if (key === "force") {
+        flags[key] = true;
+        continue;
+      }
+      const val = args[++i];
+      if (key in multi) multi[key].push(val);
+      else flags[key] = val;
+    } else {
+      pos.push(a);
+    }
+  }
+  return { flags, multi, pos };
+}
+
+const [group, sub, ...rest] = argv;
+
+if (group === "auth" && sub === "status") {
+  if (process.env.GH_SHIM_FAIL_AUTH) fail("You are not logged into any GitHub hosts. Run `gh auth login` to authenticate.");
+  process.stderr.write("github.com\n  ✓ Logged in to github.com account shim-user\n");
+  process.exit(0);
+}
+
+if (group === "label" && sub === "create") {
+  // Idempotent by contract (store-github passes --force); nothing to persist.
+  process.exit(0);
+}
+
+if (group === "issue") {
+  const state = loadState();
+  const { flags, multi, pos } = parseFlags(rest);
+  const repo = flags.repo || "o/r";
+
+  if (sub === "create") {
+    const num = state.nextNumber++;
+    const body = flags["body-file"] === "-" ? readStdin() : flags.body || "";
+    state.issues[String(num)] = {
+      number: num,
+      title: flags.title || "",
+      body,
+      state: "OPEN",
+      stateReason: null,
+      labels: multi.label.map((name) => ({ name })),
+      comments: [],
+      url: `https://github.com/${repo}/issues/${num}`,
+    };
+    saveState(state);
+    process.stdout.write(`https://github.com/${repo}/issues/${num}\n`);
+    process.exit(0);
+  }
+
+  if (sub === "list") {
+    let issues = Object.values(state.issues);
+    if (flags.label) issues = issues.filter((i) => i.labels.some((l) => l.name === flags.label));
+    if (flags.state && flags.state !== "all") {
+      const want = flags.state === "closed" ? "CLOSED" : "OPEN";
+      issues = issues.filter((i) => i.state === want);
+    }
+    process.stdout.write(JSON.stringify(issues));
+    process.exit(0);
+  }
+
+  const id = pos[0];
+  const issue = state.issues[String(id)];
+
+  if (sub === "view") {
+    if (!issue) notFound(id);
+    process.stdout.write(JSON.stringify(issue));
+    process.exit(0);
+  }
+  if (sub === "comment") {
+    if (!issue) notFound(id);
+    const body = flags["body-file"] === "-" ? readStdin() : flags.body || "";
+    state.clock = (state.clock || 0) + 1;
+    issue.comments.push({ body, createdAt: new Date(state.clock * 1000).toISOString() });
+    saveState(state);
+    process.stdout.write(`${issue.url}#issuecomment-${state.clock}\n`);
+    process.exit(0);
+  }
+  if (sub === "edit") {
+    if (!issue) notFound(id);
+    if (flags["body-file"] === "-") issue.body = readStdin();
+    else if (flags.body !== undefined) issue.body = flags.body;
+    if (flags.title !== undefined) issue.title = flags.title;
+    for (const name of multi["remove-label"]) issue.labels = issue.labels.filter((l) => l.name !== name);
+    for (const name of multi["add-label"]) if (!issue.labels.some((l) => l.name === name)) issue.labels.push({ name });
+    saveState(state);
+    process.stdout.write(`${issue.url}\n`);
+    process.exit(0);
+  }
+  if (sub === "close") {
+    if (!issue) notFound(id);
+    issue.state = "CLOSED";
+    issue.stateReason = flags.reason === "completed" ? "COMPLETED" : "NOT_PLANNED";
+    saveState(state);
+    process.stdout.write(`Closed issue #${id}\n`);
+    process.exit(0);
+  }
+  if (sub === "reopen") {
+    if (!issue) notFound(id);
+    issue.state = "OPEN";
+    issue.stateReason = null;
+    saveState(state);
+    process.stdout.write(`Reopened issue #${id}\n`);
+    process.exit(0);
+  }
+}
+
+fail(`gh (shim): unsupported invocation: ${argv.join(" ")}`);

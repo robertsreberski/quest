@@ -115,12 +115,14 @@ test("create without done-when exits 2", async () => {
   assert.match(err.join("\n"), /--done-when/);
 });
 
-test("github backend is honestly unavailable (exit 6)", async () => {
+test("github backend surfaces gh unavailability as exit 6 (never falls back to local)", async () => {
   await run(["init"], io);
   const cfg = join(cwd, ".quests", "config.json");
   writeFileSync(cfg, JSON.stringify({ backend: "github", github: { repo: "o/r" } }));
-  assert.equal(await run(["list"], io), 6);
-  assert.match(err.join("\n"), /github backend/);
+  // No gh on PATH → the store must fail honestly (exit 6), not silently read local.
+  const badIo = { ...io, env: { PATH: "/nonexistent-quest-test-bin" } };
+  assert.equal(await run(["list"], badIo), 6);
+  assert.match(err.join("\n"), /gh/);
 });
 
 test("init --agents-md appends orientation section", async () => {

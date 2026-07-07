@@ -47,7 +47,9 @@ function scan(dir) {
       continue; // binary or unreadable
     }
     for (const p of patterns) {
-      if (p.source.includes("robertsre") && OWNER_OK.has(rel)) continue;
+      // The owner's name legitimately appears in manifests/LICENSE/README and in
+      // the dogfood journal (.quests/ records cite this repo's own URLs).
+      if (p.source.includes("robertsre") && (OWNER_OK.has(rel) || rel.startsWith(".quests/"))) continue;
       const m = text.match(p);
       if (m) {
         failures++;
