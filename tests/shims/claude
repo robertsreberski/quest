@@ -1,0 +1,58 @@
+#!/usr/bin/env node
+// Fake `claude` for runner tests. Behaviour is scripted by a scenario JSON file
+// pointed at by QUEST_SHIM_SCENARIO. Each invocation consumes the next entry in
+// `sessions[]` (a per-scenario counter file tracks position across the fresh
+// processes the runner spawns). It talks to the real quest store through the
+// real quest CLI (path in scenario.questBin), so checkpoints the runner then
+// observes are genuine — no store writes are faked.
+import { readFileSync, writeFileSync, existsSync, appendFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+
+const scenarioPath = process.env.QUEST_SHIM_SCENARIO;
+const scenario = JSON.parse(readFileSync(scenarioPath, "utf8"));
+const questDir = scenario.questDir || process.env.QUEST_DIR;
+const questBin = scenario.questBin;
+// Derive the target quest id from the prompt ("Work quest N …") so one shim can
+// serve a whole --ready wave; fall back to the scenario's fixed id.
+const argvAll = process.argv.slice(2).join(" ");
+const idMatch = argvAll.match(/quest (\d+)/);
+const id = String(idMatch ? idMatch[1] : scenario.questId);
+
+const countPath = scenarioPath + ".claude.count";
+const n = existsSync(countPath) ? Number(readFileSync(countPath, "utf8")) : 0;
+writeFileSync(countPath, String(n + 1));
+
+// Log the invocation for assertions.
+appendFileSync(scenarioPath + ".claude.calls.jsonl", JSON.stringify({ n, argv: process.argv.slice(2) }) + "\n");
+
+const action = (scenario.sessions && scenario.sessions[n]) || "nothing";
+
+function quest(args) {
+  const res = spawnSync(process.execPath, [questBin, ...args], {
+    env: { ...process.env, QUEST_DIR: questDir },
+    encoding: "utf8",
+  });
+  return res;
+}
+
+function checkpoint(status) {
+  quest(["start", id]); // idempotent transition into in_progress
+  const validation = status === "complete" ? "`shim validation` → ok" : "shim ran";
+  quest(["checkpoint", id, "--status", status, "--summary", `shim ${status} session ${n}`, "--validation", validation]);
+}
+
+if (action === "complete" || action === "blocked" || action === "in_progress") {
+  checkpoint(action);
+}
+// action "nothing" → do not record a checkpoint (drives the stall path).
+
+const result = {
+  type: "result",
+  subtype: "success",
+  is_error: false,
+  result: `shim session ${n} action=${action}`,
+  session_id: scenario.session_id || `claude-sess-${n}`,
+  total_cost_usd: typeof scenario.cost_usd === "number" ? scenario.cost_usd : 0.01,
+  usage: { input_tokens: 100, output_tokens: 50 },
+};
+process.stdout.write(JSON.stringify(result) + "\n");

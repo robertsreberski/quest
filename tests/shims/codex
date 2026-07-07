@@ -1,0 +1,60 @@
+#!/usr/bin/env node
+// Fake `codex` for runner tests. Emits a codex-exec-style `--json` event stream
+// on stdout and writes the final-report JSON to the `-o <file>` path. Behaviour
+// is scripted by QUEST_SHIM_SCENARIO: `scenario.initial` governs the first
+// `codex exec` segment, `scenario.resume` governs any `codex exec resume`
+// segment (corrective or continuation). It records real checkpoints through the
+// real quest CLI so the runner observes genuine store state.
+import { readFileSync, writeFileSync, appendFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+
+const scenarioPath = process.env.QUEST_SHIM_SCENARIO;
+const scenario = JSON.parse(readFileSync(scenarioPath, "utf8"));
+const questDir = scenario.questDir || process.env.QUEST_DIR;
+const questBin = scenario.questBin;
+const id = String(scenario.questId);
+
+const argv = process.argv.slice(2);
+const isResume = argv.includes("resume");
+appendFileSync(scenarioPath + ".codex.calls.jsonl", JSON.stringify({ isResume, argv }) + "\n");
+
+// -o <file> target for the final report.
+const oIdx = argv.indexOf("-o");
+const outFile = oIdx !== -1 ? argv[oIdx + 1] : null;
+
+const spec = (isResume ? scenario.resume : scenario.initial) || {};
+
+function quest(args) {
+  spawnSync(process.execPath, [questBin, ...args], { env: { ...process.env, QUEST_DIR: questDir }, encoding: "utf8" });
+}
+
+const emit = (obj) => process.stdout.write(JSON.stringify(obj) + "\n");
+
+emit({ type: "thread.started", thread_id: scenario.thread_id || "codex-thread-1" });
+
+if (spec.createGoal) {
+  emit({ type: "item.completed", item: { type: "mcp_tool_call", server: "goal", tool: "create_goal", status: "completed" } });
+} else {
+  // Narrate the intent WITHOUT a tool call — this is the "missing create_goal"
+  // case the runner must detect and correct.
+  emit({ type: "item.completed", item: { type: "agent_message", text: "I will create_goal for this thread with the stopping condition." } });
+}
+
+if (spec.checkpoint) {
+  quest(["start", id]);
+  const validation = spec.checkpoint === "complete" ? "`shim validation` → ok" : "shim ran";
+  quest(["checkpoint", id, "--status", spec.checkpoint, "--summary", `codex shim ${spec.checkpoint}`, "--validation", validation]);
+}
+
+emit({ type: "turn.completed", usage: { input_tokens: 200, output_tokens: 80 } });
+
+if (outFile) {
+  writeFileSync(
+    outFile,
+    JSON.stringify({
+      quest_status: spec.checkpoint || "in_progress",
+      checkpoint_recorded: Boolean(spec.checkpoint),
+      evidence_summary: `codex shim segment (resume=${isResume})`,
+    }),
+  );
+}
