@@ -22,3 +22,15 @@ Keep doing: (1) single-write-path CLI — every malformed record and illegal tra
 ## Amendment 5 — 2026-07-07T14:28:21Z
 
 When live smoke runs in throwaway stores, copy the runner journal (runs.ndjson) or its decisive lines into the checkpoint evidence — quest 5's headline live completions (runs imi9jhvc/gvevg81b) became unauditable the moment the temp dirs were deleted (reviewer F5).
+
+## Amendment 6 — 2026-07-07T22:17:59Z
+
+When an executor or reviewer subagent stops with its final report consumed by fighting a false SubagentStop block, resume it via SendMessage to restate the verdict rather than re-running the review — quest 15's reviewer and quest 16's reviewer both lost their reports to hook false-positives (2026-07-07T21:2x/22:0xZ); the resumed restate recovered the full finding list in one turn.
+
+## Amendment 7 — 2026-07-07T22:17:59Z
+
+After fixing a hook under hooks/, re-copy it into the running plugin cache (~/.claude/plugins/cache/.../hooks/) before dispatching the next subagent — the live session executes the cached copy, so quests 15/16/18 kept hitting an already-fixed false positive until the cache was synced (fixes committed 6ff394e, 345e5b6 but the cache lagged).
+
+## Amendment 8 — 2026-07-07T22:17:59Z
+
+Keep doing: send a reviewed quest back with quest reopen <id> --reason '<finding>' instead of hand-editing status or filing a duplicate — quest 15's Medium finding was dispatched back through its own new verb (reopen at 2026-07-07T21:4xZ), which recorded an audited checkpoint, kept the quest's custody, and dogfooded the feature in the same wave that shipped it.
