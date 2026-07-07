@@ -18,3 +18,7 @@ Treat provider/tool behavior claims as unverified until exercised live in the ac
 ## Amendment 4 — 2026-07-07T14:21:31Z
 
 Keep doing: (1) single-write-path CLI — every malformed record and illegal transition failed loudly at the seam (filename canonicality, duplicate-identifier mid-refactor, todo→complete rejection); (2) layered stop enforcement earned its keep the same day it shipped — the orchestrator layer caught quests 3/5 skipping protocol steps while the SubagentStop hook live-blocked a checkpoint-skipping subagent in quest 6's verification.
+
+## Amendment 5 — 2026-07-07T14:28:21Z
+
+When live smoke runs in throwaway stores, copy the runner journal (runs.ndjson) or its decisive lines into the checkpoint evidence — quest 5's headline live completions (runs imi9jhvc/gvevg81b) became unauditable the moment the temp dirs were deleted (reviewer F5).
