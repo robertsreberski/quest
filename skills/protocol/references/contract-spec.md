@@ -26,7 +26,7 @@ title: lowercase, `[a-z0-9-]`, max 40 chars.
   "defaults": {
     "worker": "claude",
     "claude": { "model": "opus", "effort": "xhigh" },
-    "codex": { "model": "gpt-5-codex", "reasoning_effort": "medium" },
+    "codex": { "model": "gpt-5.5", "reasoning_effort": "medium" },
     "max_iterations": 8,
     "priority": "p2"
   },
