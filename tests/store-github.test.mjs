@@ -178,6 +178,29 @@ test("child quest links into the parent's ## Children task list", async () => {
   assert.match(state.issues["2"].body, /parent: 1/);
 });
 
+test("epic gate: parent absent from --ready until children terminal; cancelled child unblocks it (github parity)", async () => {
+  await run(["init", "--backend", "github", "--repo", "o/r"], io());
+  await run(CREATE, io()); // epic = #1
+  await run([...CREATE, "--title", "Child one", "--parent", "1"], io()); // #2
+  await run([...CREATE, "--title", "Child two", "--parent", "1"], io()); // #3
+
+  const readyIds = async () => {
+    out.length = 0;
+    await run(["list", "--ready", "--json"], io());
+    return JSON.parse(out[0]).map((q) => q.id);
+  };
+
+  // Both children open → epic gated out; children themselves are ready.
+  assert.deepEqual(await readyIds(), [2, 3]);
+
+  // Complete one child, cancel the other → both terminal → epic becomes ready.
+  await run(["start", "2"], io());
+  await run(["checkpoint", "2", "--status", "complete", "--summary", "done", "--validation", "`node --test` → green"], io());
+  assert.ok(!(await readyIds()).includes(1), "epic ready with one child still open");
+  await run(["cancel", "3", "--reason", "descoped"], io());
+  assert.ok((await readyIds()).includes(1), "cancelled child must not wedge the epic forever");
+});
+
 test("missing gh exits 6 and never falls back to local", async () => {
   await run(["init", "--backend", "github", "--repo", "o/r"], io());
   const badEnv = { PATH: "/nonexistent-quest-test-bin", GH_SHIM_STATE: statePath };

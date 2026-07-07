@@ -1,7 +1,7 @@
 ---
 id: 16
 title: Epic readiness gate and orchestrator-side closure
-status: todo
+status: in_progress
 priority: p1
 worker: claude
 model: opus
@@ -9,7 +9,7 @@ effort: xhigh
 max_iterations: 8
 depends_on: [15]
 created: 2026-07-07T21:07:04Z
-updated: 2026-07-07T21:07:04Z
+updated: 2026-07-07T21:46:52Z
 ---
 
 # Epic readiness gate and orchestrator-side closure

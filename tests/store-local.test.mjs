@@ -74,6 +74,25 @@ test("ready gating respects depends_on and priority order", () => {
   assert.deepEqual(ready, ["Gated", "Free high", "Free low"]); // p0 tie → lower id first
 });
 
+test("epic gate: a parent is absent from --ready until every child is terminal; a cancelled child unblocks it", () => {
+  const epic = local.createQuest(storeDir, DEFAULTS, { title: "Epic" }, SECTIONS);
+  const childA = local.createQuest(storeDir, DEFAULTS, { title: "Child A", parent: epic.id }, SECTIONS);
+  const childB = local.createQuest(storeDir, DEFAULTS, { title: "Child B", parent: epic.id }, SECTIONS);
+
+  // Both children non-terminal → epic is gated out of ready.
+  assert.ok(!local.readyQuests(storeDir).some((q) => q.id === epic.id), "epic ready while children open");
+  // Children themselves are ready (no open children of their own).
+  const ready0 = local.readyQuests(storeDir).map((q) => q.id);
+  assert.deepEqual(ready0, [childA.id, childB.id]);
+
+  // Complete one child, cancel the other → both terminal → epic becomes ready.
+  local.startQuest(storeDir, childA.id);
+  local.appendCheckpoint(storeDir, childA.id, { quest_status: "complete", iteration: 1, changed: "done", validation_summary: "`ok`" });
+  assert.ok(!local.readyQuests(storeDir).some((q) => q.id === epic.id), "epic ready with one child still open");
+  local.cancelQuest(storeDir, childB.id, "descoped");
+  assert.ok(local.readyQuests(storeDir).some((q) => q.id === epic.id), "cancelled child must not wedge the epic forever");
+});
+
 test("create rejects unknown depends_on and parent", () => {
   assert.throws(() => local.createQuest(storeDir, DEFAULTS, { title: "Bad dep", depends_on: [99] }, SECTIONS), /unknown quest 99/);
   assert.throws(() => local.createQuest(storeDir, DEFAULTS, { title: "Bad parent", parent: 42 }, SECTIONS), /not found/);
