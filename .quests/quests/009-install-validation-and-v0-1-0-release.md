@@ -1,14 +1,14 @@
 ---
 id: 9
 title: Install validation and v0.1.0 release
-status: in_progress
+status: complete
 priority: p0
 worker: claude
 model: inherit
 max_iterations: 6
 depends_on: [8]
 created: 2026-07-07T13:12:31Z
-updated: 2026-07-07T15:12:16Z
+updated: 2026-07-07T15:18:43Z
 ---
 
 # Install validation and v0.1.0 release
@@ -45,3 +45,11 @@ Manifests: `.claude-plugin/`, `.codex-plugin/`. Marketplace file:
 - Post-release feature work.
 
 ## Checkpoints
+
+<!-- quest:checkpoint -->
+### 2026-07-07T15:18:43Z — quest_status: complete
+- iteration: 1
+- changed: installs validated from the public repo on BOTH harnesses; v0.1.0 tagged and pushed with CHANGELOG
+- validation_summary: `claude plugin marketplace add robertsreberski/quest` → added; `claude plugin install quest@quest` → installed (scope: user); fresh claude session (no --plugin-dir): `which quest` → ~/.claude/plugins/cache/quest/quest/0.1.0/bin/quest, all 5 skills + 2 agents listed; `codex plugin marketplace add https://github.com/robertsreberski/quest` → added; `codex plugin add quest@quest` → installed 0.1.0; codex exec from a neutral dir listed all 5 quest skills from the installed plugin; `git tag --list v0.1.0` → v0.1.0; `npm test` → 80 pass
+
+Done-when enumeration: (1) Claude marketplace add + install from the public repo URL, fresh session has skills and quest on PATH — Done, with a NAMED SUBSTITUTION: validated in the owner'\''s real environment via fresh sessions rather than a fresh container/spare account (stronger end-user evidence from the actual public repo; weaker isolation — no container runtime exercised). (2) Codex install — Done, EXCEEDING the record'\''s fallback expectation: the public repo worked directly as a codex marketplace (codex plugin add quest@quest), no local snapshot or clone-path fallback needed. (3) v0.1.0 tag + CHANGELOG + README real install commands — Done.
