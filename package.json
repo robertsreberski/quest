@@ -1,15 +1,39 @@
 {
-  "name": "quest-plugin",
+  "name": "quest-loop",
   "version": "0.1.0",
-  "private": true,
-  "description": "Goal-loop engineering plugin for Claude Code and Codex. Not an npm package — install as a plugin (see README).",
+  "description": "Goal-loop engineering for coding agents: quest contracts, iterative execution with evidence checkpoints, Claude + Codex workers. Ships the `quest` store CLI and the `quest-run` headless runner.",
   "type": "module",
   "engines": { "node": ">=20" },
+  "bin": {
+    "quest": "./bin/quest",
+    "quest-run": "./bin/quest-run"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "schemas/",
+    "skills/",
+    "agents/",
+    "hooks/",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "check:parity": "node scripts/check-agent-parity.mjs",
     "check:hygiene": "node scripts/check-hygiene.mjs",
     "check:manifests": "node scripts/validate-manifests.mjs"
   },
-  "license": "MIT"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/robertsreberski/quest.git"
+  },
+  "homepage": "https://github.com/robertsreberski/quest",
+  "bugs": "https://github.com/robertsreberski/quest/issues",
+  "keywords": ["goal-loop", "agents", "orchestration", "workflow", "planning", "checkpoints", "claude", "codex", "cli"],
+  "author": "Robert Sreberski",
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
 }
