@@ -1,7 +1,7 @@
 ---
 id: 16
 title: Epic readiness gate and orchestrator-side closure
-status: in_progress
+status: complete
 priority: p1
 worker: claude
 model: opus
@@ -9,7 +9,7 @@ effort: xhigh
 max_iterations: 8
 depends_on: [15]
 created: 2026-07-07T21:07:04Z
-updated: 2026-07-07T21:51:44Z
+updated: 2026-07-07T21:54:43Z
 ---
 
 # Epic readiness gate and orchestrator-side closure
@@ -60,3 +60,12 @@ Design fixed at filing time (retro of the test-mario store); ruling: epics stay 
 - head_sha: 422aba9
 - changed: M2 done — runReady in runner.mjs skips ready epics (quests other quests name as parent), logs actionable /quest:orchestrate close-inline line, dispatches no worker; direct quest-run <id> stays allowed
 - validation_summary: `node --test tests/runner.test.mjs` → 22 passed 0 fail (new epic-skip test asserts no run_started for epic id + stderr /is an epic/ + direct run completes); `npm test` → 97 passed 0 fail; `npm run check:parity` → parity: OK; `npm run check:hygiene` → hygiene: OK
+
+<!-- quest:checkpoint -->
+### 2026-07-07T21:54:43Z — quest_status: complete
+- iteration: 3
+- head_sha: 0618aaf
+- changed: M3 done — orchestrate 'Closing an epic' section, plan integration-level epic guidance, and docs (help --ready text, contract-spec parent row, protocol sizing note, README quest-run note, CHANGELOG Changed entry). All three milestones complete.
+- validation_summary: `npm test && npm run check:parity && npm run check:hygiene` → ALL GREEN: npm test → 97 pass 0 fail; parity: OK; hygiene: OK. New tests: store-local epic-gate + cancelled-child-unblock; store-github parity; runner --ready epic-skip (no run_started for epic id, stderr /is an epic/, direct quest-run <id> completes).
+
+Done-when: (1) readyQuests epic gate in store-local.mjs + store-github.mjs — Done (openParents set; parity tests). (2) quest-run --ready refuses epics with actionable /quest:orchestrate line, direct run allowed — Done (runReady epicIds skip; runner test). (3) orchestrate 'Closing an epic' — Done. (4) plan integration-level epic Done-when, no 1:1 milestones — Done. (5) docs: help.mjs, contract-spec.md, protocol.md, README, CHANGELOG — Done (all five). (6) validation loop + new tests green — Done.
