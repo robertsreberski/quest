@@ -1,0 +1,12 @@
+{
+  "name": "quest",
+  "description": "Goal-loop engineering plugin: quest contracts, iterative execution with checkpoints, Claude + Codex workers.",
+  "owner": { "name": "Robert Sreberski" },
+  "plugins": [
+    {
+      "name": "quest",
+      "source": "./",
+      "description": "Goal-loop engineering: quest contracts, iterative execution with checkpoints, Claude + Codex workers, retros into protocol amendments."
+    }
+  ]
+}

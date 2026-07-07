@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Quest worker final report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["quest_status", "checkpoint_recorded", "evidence_summary"],
+  "properties": {
+    "quest_status": {
+      "type": "string",
+      "enum": ["in_progress", "complete", "blocked"],
+      "description": "The quest_status of the checkpoint this session recorded."
+    },
+    "checkpoint_recorded": {
+      "type": "boolean",
+      "description": "True only if `quest checkpoint` was actually run and succeeded this session."
+    },
+    "evidence_summary": {
+      "type": "string",
+      "description": "One line citing the decisive command and its observed result."
+    }
+  }
+}

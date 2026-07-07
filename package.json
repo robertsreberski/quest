@@ -1,0 +1,14 @@
+{
+  "name": "quest-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Goal-loop engineering plugin for Claude Code and Codex. Not an npm package — install as a plugin (see README).",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test tests/",
+    "check:parity": "node scripts/check-agent-parity.mjs",
+    "check:hygiene": "node scripts/check-hygiene.mjs"
+  },
+  "license": "MIT"
+}

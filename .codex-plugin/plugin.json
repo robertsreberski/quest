@@ -1,0 +1,24 @@
+{
+  "name": "quest",
+  "version": "0.1.0",
+  "description": "Goal-loop engineering for coding agents: plan work as evidence-checkable quest contracts, execute them in iterative loops with checkpoints, orchestrate workers, and mine retros into protocol amendments.",
+  "author": { "name": "Robert Sreberski" },
+  "homepage": "https://github.com/robertsreberski/quest",
+  "repository": "https://github.com/robertsreberski/quest",
+  "license": "MIT",
+  "keywords": ["goal-loop", "orchestration", "workflow", "planning", "checkpoints", "quests"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Quest",
+    "shortDescription": "Goal-loop engineering: quest contracts, iterative execution, checkpoints",
+    "longDescription": "Use Quest to turn asks into evidence-checkable quest contracts, execute them in iterative loops that end in verifiable checkpoints, orchestrate parallel workers across waves, and mine retrospectives into numbered protocol amendments.",
+    "developerName": "Robert Sreberski",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "defaultPrompt": [
+      "Plan this feature as quests.",
+      "Work quest 1 to completion."
+    ],
+    "websiteURL": "https://github.com/robertsreberski/quest"
+  }
+}
