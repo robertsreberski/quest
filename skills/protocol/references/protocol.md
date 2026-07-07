@@ -44,7 +44,11 @@ Each iteration:
 6. **Evaluate stop conditions.**
    - `complete` — every "Done when" item is enumerated as
      **Done / Blocked / Cancelled** with its evidence, and no new TODOs or
-     follow-up work remain inside this quest (file a new quest instead).
+     follow-up work remain inside this quest (file a new quest instead). If a
+     completed quest is later found defective, the one legal way back into the
+     loop is `quest reopen <id> --reason` (flips `complete → in_progress`,
+     appends an audited `reopen_reason` checkpoint) — never hand-edit a terminal
+     status line. `cancelled` stays fully terminal.
    - `blocked` — (a) two consecutive iterations failing on the same error,
      (b) a decision only a human can make, or (c) an unsatisfiable "Done when"
      — name the exact discrepancy and the corrected anchor; **never improvise

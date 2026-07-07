@@ -49,6 +49,25 @@ trails, and escalations only where a human ruling is genuinely needed.
 6. **Wave done?** When `quest list --ready` empties and nothing is in flight:
    run `/quest:retro` before starting the next wave.
 
+## Reopening completed work
+
+When review (or reality) finds a defect in a quest you already marked
+**complete**, never hand-edit the status line and never redispatch a worker onto
+the terminal record — `quest-run` early-exits on a complete quest and journals a
+0-session no-op. Instead reopen it:
+
+```bash
+quest reopen <id> --reason "review found npm audit criticals after completion"
+```
+
+This flips `complete → in_progress` and appends an audited checkpoint carrying
+`reopen_reason`, so the loop keeps custody of the defect trail. Then dispatch the
+quest directly by id (`quest-run <id>` or a `quest-executor` subagent) — reopened
+quests are `in_progress`, so they do **not** re-appear in `quest list --ready`.
+Reopening a child of a **complete** parent epic is allowed (a stderr warning, not
+a block); you then rule whether the epic's completion verdict is falsified and,
+if so, reopen the epic too. `cancelled` is fully terminal — file a new quest.
+
 ## Autonomous waves
 
 For an unattended wave, pin your own session to the outcome with a native goal:

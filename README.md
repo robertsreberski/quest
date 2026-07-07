@@ -171,6 +171,7 @@ full base protocol lives in
 | `quest start` | Mark a quest in_progress (todo → in_progress) |
 | `quest checkpoint` | Record iteration evidence and drive the quest's status |
 | `quest cancel` | Cancel a quest (terminal; reason is recorded) |
+| `quest reopen` | Reopen a complete quest back into the loop (complete → in_progress; reason recorded) |
 | `quest edit` | Compatibly expand a quest (additions only; anchors are immutable) |
 | `quest lint` | Check records against the contract spec |
 | `quest amend` | Append a numbered protocol amendment (retro output) |

@@ -8,7 +8,7 @@ model: opus
 effort: xhigh
 max_iterations: 8
 created: 2026-07-07T21:06:46Z
-updated: 2026-07-07T21:16:22Z
+updated: 2026-07-07T21:17:33Z
 ---
 
 # quest reopen verb: audited path from complete back into the loop
@@ -76,3 +76,11 @@ Committed 8538f77.
 - validation_summary: `npm test` → 89 passed, 0 failed (+3 github shim tests: issue OPEN + label swap + reopen_reason comment; reopen missing-reason exits 5 no-mutation; edit-on-complete exits 5 no-comment). help snapshot test green after regen.
 
 Committed 936bc20. --reason missing → ContractError (exit 5), mirroring cancel — no UsageError pre-check. M4 remaining: runner early-exit stderr hint + its test + cli exit-5 test.
+
+<!-- quest:checkpoint -->
+### 2026-07-07T21:17:33Z — quest_status: in_progress
+- iteration: 4
+- changed: M4: quest-run early-exit on an already-complete quest now writes a stderr line suggesting `quest reopen <id> --reason` (never hand-edit status); added runner test (spawns nothing, journals a 0-session complete no-op) and cli test (reopen missing-reason exits 5; with reason flips complete→in_progress, records reopen_reason, and stays out of --ready).
+- validation_summary: `npm test` → 91 passed, 0 failed (+2: runner early-exit-suggests-reopen, cli reopen exit-5/round-trip)
+
+Committed 944617f. All CLI/help surfaces done. M5 remaining: docs (contract-spec.md, protocol.md, orchestrate SKILL.md, README) + check:parity/hygiene/manifests.
