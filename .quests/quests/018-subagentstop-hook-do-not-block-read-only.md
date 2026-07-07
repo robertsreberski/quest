@@ -1,14 +1,14 @@
 ---
 id: 18
 title: SubagentStop hook: do not block read-only agents (reviewers)
-status: todo
+status: in_progress
 priority: p1
 worker: claude
 model: opus
 effort: xhigh
 max_iterations: 8
 created: 2026-07-07T22:04:45Z
-updated: 2026-07-07T22:04:45Z
+updated: 2026-07-07T22:07:09Z
 ---
 
 # SubagentStop hook: do not block read-only agents (reviewers)

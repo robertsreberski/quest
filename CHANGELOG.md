@@ -18,13 +18,24 @@ All notable changes to this project are documented here. The format follows
   skill documents that epic contracts are integration-level only.
 
 ### Fixed
+- SubagentStop hook now keys quest-executor detection to real *mutating*
+  invocations — `quest start <id>` or `quest checkpoint <id>` (under any binary
+  prefix: `quest`, `./bin/quest`, `node bin/quest`) — instead of the read-only
+  `quest show <id> --json` orientation call. Reviewers and orchestrators that run
+  only read verbs (show / list / protocol / runs) never owned a quest, so they are
+  allowed silently; this removes a false positive where a read-only quest-reviewer
+  was blocked at stop for merely inspecting a terminal quest. A `quest checkpoint`
+  invocation counts too, so an executor resuming an already-in_progress quest
+  (which skips `quest start`) is still detected. The first mutating invocation wins
+  (deterministic); the executor block, per-entry parsing that keeps skill-text
+  examples from keying detection, and conservative allow-on-ambiguity are all
+  preserved.
 - SubagentStop hook now derives the quest-executor id by parsing the transcript
-  JSONL per-entry and matching the `quest show <id> --json` marker only inside
-  real tool_use command invocations — never prose, examples, or echoed file
-  contents. This removes a false positive where skill-text examples (e.g.
-  `quest show 12 --json`) keyed the detection ahead of the executor's real
-  orientation call. The first real invocation wins (deterministic); conservative
-  allow-on-ambiguity is preserved.
+  JSONL per-entry and matching its marker only inside real tool_use command
+  invocations — never prose, examples, or echoed file contents. This removes a
+  false positive where skill-text examples keyed the detection ahead of the
+  executor's real call. The first real invocation wins (deterministic);
+  conservative allow-on-ambiguity is preserved.
 
 ## [0.1.1] — 2026-07-07
 

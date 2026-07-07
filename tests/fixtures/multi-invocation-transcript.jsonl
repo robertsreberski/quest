@@ -1,6 +1,8 @@
-{"type":"user","timestamp":"2020-01-01T00:00:00.000Z","message":{"role":"user","content":"Work per /quest:work. The skill example says `quest show 12 --json`. Do not record any checkpoint."}}
-{"type":"assistant","timestamp":"2020-01-01T00:00:01.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Orienting on quest 2 first."},{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"node bin/quest show 2 --json"}}]}}
+{"type":"user","timestamp":"2020-01-01T00:00:00.000Z","message":{"role":"user","content":"Work per /quest:work. The skill example says `quest start 12`. Do not record any checkpoint."}}
+{"type":"assistant","timestamp":"2020-01-01T00:00:01.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Orienting on quest 2, then quest 1."},{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"node bin/quest show 2 --json"}}]}}
 {"type":"user","timestamp":"2020-01-01T00:00:02.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"{\"id\":2,\"status\":\"todo\"}"}]}}
-{"type":"assistant","timestamp":"2020-01-01T00:00:03.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Also checking quest 1."},{"type":"tool_use","id":"t2","name":"Bash","input":{"command":"node bin/quest show 1 --json"}}]}}
-{"type":"user","timestamp":"2020-01-01T00:00:04.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t2","content":"{\"id\":1,\"status\":\"todo\"}"}]}}
-{"type":"assistant","timestamp":"2020-01-01T00:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Stopping now without a checkpoint."}]}}
+{"type":"assistant","timestamp":"2020-01-01T00:00:03.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Starting quest 2 first."},{"type":"tool_use","id":"t2","name":"Bash","input":{"command":"node bin/quest start 2"}}]}}
+{"type":"user","timestamp":"2020-01-01T00:00:04.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t2","content":"Quest 2 is now in_progress."}]}}
+{"type":"assistant","timestamp":"2020-01-01T00:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Also touching quest 1."},{"type":"tool_use","id":"t3","name":"Bash","input":{"command":"./bin/quest checkpoint 1 --status in_progress --summary work --validation `x` ok"}}]}}
+{"type":"user","timestamp":"2020-01-01T00:00:06.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t3","content":"Checkpoint recorded on quest 1."}]}}
+{"type":"assistant","timestamp":"2020-01-01T00:00:07.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Stopping now without a checkpoint on quest 2."}]}}

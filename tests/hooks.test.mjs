@@ -17,6 +17,8 @@ const EXECUTOR_TRANSCRIPT = new URL("./fixtures/executor-transcript.jsonl", impo
 const UNRELATED_TRANSCRIPT = new URL("./fixtures/unrelated-transcript.jsonl", import.meta.url).pathname;
 const SKILL_PROSE_TRANSCRIPT = new URL("./fixtures/skill-prose-transcript.jsonl", import.meta.url).pathname;
 const MULTI_INVOCATION_TRANSCRIPT = new URL("./fixtures/multi-invocation-transcript.jsonl", import.meta.url).pathname;
+const READONLY_REVIEWER_TRANSCRIPT = new URL("./fixtures/readonly-reviewer-transcript.jsonl", import.meta.url).pathname;
+const CHECKPOINT_FIRST_TRANSCRIPT = new URL("./fixtures/checkpoint-first-transcript.jsonl", import.meta.url).pathname;
 
 // Clean env: strip QUEST_DIR/QUEST_BACKEND so store discovery is driven purely by
 // the payload cwd, matching how the hook runs inside a real session.
@@ -83,14 +85,13 @@ test("SubagentStop: a stale checkpoint (older than start) still blocks", async (
   assert.equal(JSON.parse(res.stdout.trim()).decision, "block");
 });
 
-// (b'') REGRESSION (quest 15 executor false positive): the transcript's FIRST
-// raw-text `quest show <id> --json` match is a skill-text example (quest 12), in
-// user prose, an assistant text block, and an echoed SKILL.md tool_result — all
-// before the real `quest show 1 --json` command invocation. The hook must key on
-// the real id (1), not the prose id (12). Under the old raw-text regex this keyed
-// quest 12 (absent from the store → silent allow), so this test would fail with an
-// empty stdout; keyed correctly it blocks quest 1.
-test("SubagentStop: skill-text quest-id example never keys detection (quest 15 regression)", async () => {
+// (b'') REGRESSION (quest 15/17 prose false positive, re-anchored on mutating
+// verbs): skill-text examples for the *mutating* verbs (`quest start 12` and
+// `quest checkpoint 12`) appear in user prose, an assistant text block, and an
+// echoed SKILL.md tool_result — all before the real `quest start 1` command
+// invocation. The hook must key on the real id (1), never the prose id (12). Prose
+// can never key detection: only tool_use command inputs count.
+test("SubagentStop: skill-text mutating-verb example never keys detection (prose regression)", async () => {
   await seedQuest(); // quest 1, in_progress, zero checkpoints
   const res = fire(SUBAGENT_STOP, stopPayload(SKILL_PROSE_TRANSCRIPT));
   assert.equal(res.status, 0);
@@ -103,10 +104,12 @@ test("SubagentStop: skill-text quest-id example never keys detection (quest 15 r
   );
 });
 
-// Determinism: with multiple real `quest show` invocations, the FIRST one wins.
-// The transcript invokes quest 2 then quest 1 (after skill prose citing quest 12);
-// the block must name quest 2.
-test("SubagentStop: first real quest-show invocation wins (deterministic)", async () => {
+// Determinism: with multiple real mutating invocations, the FIRST one wins. The
+// transcript reads quest 2 (show), then really starts quest 2, then checkpoints
+// quest 1 — after skill prose citing quest 12. The block must name quest 2: the
+// first mutating verb (`quest start 2`) wins over the later `quest checkpoint 1`
+// call, the read-only `quest show 2` call, and the quest 12 prose.
+test("SubagentStop: first mutating invocation wins (deterministic)", async () => {
   await run(["init"], io);
   await run(["create", "--title", "One", "--objective", "o", "--done-when", "w", "--validation", "node --test"], io);
   await run(["create", "--title", "Two", "--objective", "o", "--done-when", "w", "--validation", "node --test"], io);
@@ -117,7 +120,43 @@ test("SubagentStop: first real quest-show invocation wins (deterministic)", asyn
   assert.equal(
     decision.reason,
     "quest 2: record a checkpoint via `quest checkpoint 2` before stopping (protocol: no stop without a checkpoint)",
-    "the first real invocation (quest 2) wins over the later quest 1 call and the quest 12 prose",
+    "the first mutating invocation (quest 2 start) wins over the later quest 1 checkpoint and the quest 12 prose",
+  );
+});
+
+// REGRESSION (quest 16 reviewer false positive): a read-only reviewer inspects the
+// quest under review and its dependencies with `quest show <id> --json`, plus
+// `quest list --ready` and `quest protocol` — all read verbs, no mutating verb. It
+// never owned a quest, so it must be allowed silently even though quest 1 is
+// terminal-complete with its last checkpoint older than this run (neither clear
+// condition would fire). Under the old show-based marker this blocked the reviewer.
+test("SubagentStop: read-only reviewer (show/list/protocol only) is allowed silently (quest 16 regression)", async () => {
+  await seedQuest("Ship the widget"); // quest 1, in_progress
+  // Terminal-complete, with its only checkpoint recorded now (well before the
+  // reviewer's 2099 start) — so neither the checkpoint-newer-than-start nor the
+  // terminal-during-run clear would fire. Exactly the quest 16 conditions.
+  await run(["checkpoint", "1", "--status", "complete", "--summary", "done", "--validation", "`x` ok"], io);
+  const res = fire(SUBAGENT_STOP, { ...stopPayload(READONLY_REVIEWER_TRANSCRIPT), started_at: "2099-01-01T00:00:00Z" });
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout.trim(), "", "a read-only reviewer must never be blocked");
+});
+
+// The FIRST mutating verb on a resumed/blocked quest may be `quest checkpoint <id>`
+// with no preceding `quest start` (already-in_progress quests skip start), so a
+// checkpoint invocation must also key executor detection. Here the checkpoint
+// attempt did not persist (store has no fresh checkpoint), so the executor that
+// stopped without a recorded checkpoint is still blocked — keyed to quest 1 via the
+// checkpoint invocation alone.
+test("SubagentStop: a checkpoint invocation alone keys executor detection (resumed quest)", async () => {
+  await seedQuest(); // quest 1, in_progress, zero checkpoints
+  const res = fire(SUBAGENT_STOP, stopPayload(CHECKPOINT_FIRST_TRANSCRIPT));
+  assert.equal(res.status, 0);
+  const decision = JSON.parse(res.stdout.trim());
+  assert.equal(decision.decision, "block");
+  assert.equal(
+    decision.reason,
+    "quest 1: record a checkpoint via `quest checkpoint 1` before stopping (protocol: no stop without a checkpoint)",
+    "the `quest checkpoint 1` invocation keys detection even without a `quest start`",
   );
 });
 

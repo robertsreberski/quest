@@ -4,16 +4,23 @@
 // enforced deterministically.
 //
 // A subagent counts as a quest-executor iff one of its transcript entries records
-// an actual `quest show <id> --json` *command invocation* — a tool_use block whose
-// shell command carries the marker. We parse the JSONL per-entry and inspect only
-// tool_use command inputs; prose, quoted skill text, examples, and echoed file
-// contents live in text blocks and tool_result content (never in a tool_use
-// command), so the `quest show 12 --json` examples in the skills can no longer key
-// the detection. The FIRST real invocation wins (deterministic, transcript order).
-// No real invocation → not our concern, allow silently. We then compare the quest's
-// latest checkpoint against the subagent's start time (the transcript's first
-// timestamp): a checkpoint newer than start clears the stop; so does a terminal
-// store status (complete/blocked/cancelled) reached during the run.
+// an actual *mutating* quest invocation — `quest start <id>` or `quest checkpoint
+// <id>` (under any binary prefix: `quest`, `./bin/quest`, `node bin/quest`) — as a
+// tool_use block whose shell command carries the marker. Read-only verbs
+// (`quest show <id> --json`, `list`, `protocol`, `runs`) are how reviewers and
+// orchestrators inspect a quest without owning it, so they must NEVER key
+// detection: an agent whose transcript holds only read verbs is allowed silently.
+// The executor id comes from that first mutating invocation (deterministic,
+// transcript order) — including `quest checkpoint <id>`, because an executor
+// resuming an already-in_progress quest skips `quest start` and its first mutating
+// verb is the checkpoint. We parse the JSONL per-entry and inspect only tool_use
+// command inputs; prose, quoted skill text, examples, and echoed file contents live
+// in text blocks and tool_result content (never in a tool_use command), so
+// `quest start 12` / `quest checkpoint 12` examples in the skills can no longer key
+// detection. No mutating invocation → not our concern, allow silently. We then
+// compare the quest's latest checkpoint against the subagent's start time (the
+// transcript's first timestamp): a checkpoint newer than start clears the stop; so
+// does a terminal store status (complete/blocked/cancelled) reached during the run.
 //
 // Conservative by construction: any missing/unreadable input or parse failure →
 // allow (exit 0), with a one-line stderr diagnostic. We never false-positive-block
@@ -27,7 +34,10 @@ import { readFileSync, writeSync } from "node:fs";
 import { findStoreDir } from "../lib/config.mjs";
 import { loadQuest } from "../lib/store-local.mjs";
 
-const MARKER = /quest\s+show\s+(\d+)\s+--json/;
+// Mutating quest verbs only. Group 1 is the verb, group 2 the id. `\bquest`
+// anchors on a word boundary so `bin/quest` and `./bin/quest` match while
+// `conquest` does not; read verbs (show/list/protocol/runs) are deliberately absent.
+const MARKER = /\bquest\s+(start|checkpoint)\s+(\d+)/;
 const TERMINAL = ["complete", "blocked", "cancelled"];
 
 async function readStdin() {
@@ -70,9 +80,10 @@ function commandOf(input) {
   return input && typeof input === "object" && typeof input.command === "string" ? input.command : null;
 }
 
-// The marker id from one transcript entry, considering only tool_use command
-// invocations. Assistant messages carry an array of content blocks; string content
-// (plain prose) and tool_result blocks (echoed output/file contents) are ignored.
+// The mutating-verb marker id from one transcript entry, considering only tool_use
+// command invocations. Assistant messages carry an array of content blocks; string
+// content (plain prose) and tool_result blocks (echoed output/file contents) are
+// ignored. Matches `quest start <id>` or `quest checkpoint <id>` and returns the id.
 function markerIdInEntry(entry) {
   const msg = entry && typeof entry === "object" ? entry.message : null;
   const content = msg && typeof msg === "object" ? msg.content : null;
@@ -82,14 +93,15 @@ function markerIdInEntry(entry) {
     const cmd = commandOf(block.input);
     if (typeof cmd !== "string") continue;
     const m = MARKER.exec(cmd);
-    if (m) return Number(m[1]);
+    if (m) return Number(m[2]); // m[1] = verb, m[2] = id
   }
   return null;
 }
 
-// The executor's quest id = the FIRST `quest show <id> --json` that appears as a
-// real command invocation, scanning entries in transcript order. Returns id or
-// null. Per-entry parsing is what keeps skill-text examples from keying detection.
+// The executor's quest id = the FIRST mutating invocation (`quest start <id>` or
+// `quest checkpoint <id>`) that appears as a real command invocation, scanning
+// entries in transcript order. Returns id or null. Per-entry parsing is what keeps
+// skill-text examples from keying detection; read verbs never match at all.
 function executorQuestId(text) {
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
@@ -114,7 +126,7 @@ try {
   catch (err) { diag(`cannot read transcript (${err.code || err.message}); allowing`); allow(); }
 
   const id = executorQuestId(transcript);
-  if (id == null) allow(); // no real `quest show <id> --json` invocation — leave it alone, silently
+  if (id == null) allow(); // no mutating quest invocation (read-only agent) — leave it alone, silently
 
   // Prefer an explicit start field if a future payload carries one; else the
   // transcript's first timestamp.
