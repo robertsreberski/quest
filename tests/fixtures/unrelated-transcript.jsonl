@@ -1,0 +1,4 @@
+{"type":"user","timestamp":"2020-01-01T00:00:00.000Z","message":{"role":"user","content":"Summarize the files in this directory."}}
+{"type":"assistant","timestamp":"2020-01-01T00:00:01.000Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"ls -la && cat README.md"}}]}}
+{"type":"user","timestamp":"2020-01-01T00:00:02.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"README.md\npackage.json"}]}}
+{"type":"assistant","timestamp":"2020-01-01T00:00:03.000Z","message":{"role":"assistant","content":[{"type":"text","text":"This directory holds a small Node project. Done."}]}}

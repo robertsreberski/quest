@@ -8,7 +8,7 @@ model: inherit
 max_iterations: 8
 depends_on: [3, 4, 5, 6, 7]
 created: 2026-07-07T13:12:31Z
-updated: 2026-07-07T13:12:31Z
+updated: 2026-07-07T13:52:21Z
 ---
 
 # Dogfood the loop and capture the demo walkthrough
@@ -28,6 +28,7 @@ reproducible end-to-end demo, and run the first retro.
       ruling, with findings dispositioned.
 - [ ] `/quest:retro` ran over this build's traces and `quest amend` recorded
       at least one evidence-cited amendment (or an explicit "no deltas" entry).
+- [ ] the walkthrough's Claude sessions run cheap tiers — orchestrator on sonnet, executor/worker on haiku — with the model flags visible in the captured commands
 
 ## Validation loop
 ```bash
@@ -41,8 +42,11 @@ npm test
 
 ## Context
 All prior quests. The orchestrate skill's ruling rubric.
+Demo model policy (owner, 2026-07-07): walkthrough = sonnet orchestrator + haiku executor; production defaults stay opus/xhigh in config — the demo doubles as proof that tiers are adjustable per dispatch.
 
 ## Out of scope
 - Release mechanics (quest 9).
 
 ## Checkpoints
+
+**Expanded 2026-07-07T13:52:21Z** — same objective; demo should be cheap to reproduce and demonstrate per-quest model tiering
