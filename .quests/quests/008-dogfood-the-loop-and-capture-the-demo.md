@@ -1,14 +1,14 @@
 ---
 id: 8
 title: Dogfood the loop and capture the demo walkthrough
-status: todo
+status: in_progress
 priority: p0
 worker: claude
 model: inherit
 max_iterations: 8
 depends_on: [3, 4, 5, 6, 7]
 created: 2026-07-07T13:12:31Z
-updated: 2026-07-07T13:52:21Z
+updated: 2026-07-07T14:20:02Z
 ---
 
 # Dogfood the loop and capture the demo walkthrough
