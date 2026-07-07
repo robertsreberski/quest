@@ -9,7 +9,7 @@ effort: xhigh
 max_iterations: 8
 depends_on: [15]
 created: 2026-07-07T21:07:04Z
-updated: 2026-07-07T21:46:52Z
+updated: 2026-07-07T21:50:00Z
 ---
 
 # Epic readiness gate and orchestrator-side closure
@@ -46,3 +46,10 @@ Design fixed at filing time (retro of the test-mario store); ruling: epics stay 
 - ledger event shape changes (no_op marker, run_started metadata) — candidate follow-up quest
 
 ## Checkpoints
+
+<!-- quest:checkpoint -->
+### 2026-07-07T21:50:00Z — quest_status: in_progress
+- iteration: 1
+- head_sha: 365d1e2
+- changed: M1 done — readyQuests epic gate added in store-local.mjs and store-github.mjs (parent with any non-terminal child excluded; cancelled child is terminal and unblocks)
+- validation_summary: `node --test tests/store-local.test.mjs tests/store-github.test.mjs` → 26 passed 0 fail; `npm test` → 96 passed 0 fail; `npm run check:parity` → parity: OK; `npm run check:hygiene` → hygiene: OK

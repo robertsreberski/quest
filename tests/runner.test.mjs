@@ -348,6 +348,30 @@ test("--ready runs every ready quest to completion", async () => {
   assert.equal(ended.length, 2);
 });
 
+test("--ready never auto-dispatches an epic — no run_started for it, stderr says it is an epic", async () => {
+  await createQuest("claude", [], "Epic parent"); // #1
+  await createQuest("claude", ["--parent", "1"], "Only child"); // #2
+  // Complete the child so the epic's children are all terminal and the epic
+  // itself becomes "ready" — this is exactly the case --ready must still skip.
+  local.startQuest(storeDir, 2);
+  local.appendCheckpoint(storeDir, 2, { quest_status: "complete", iteration: 1, changed: "done", validation_summary: "`ok`" });
+  assert.deepEqual(local.readyQuests(storeDir).map((q) => q.id), [1], "epic is the only ready quest");
+
+  const { io, err } = runnerIo();
+  const code = await runnerRun(["--ready"], io);
+  assert.equal(code, 0);
+  // The runner started no worker run for the epic.
+  assert.ok(!runsEvents().some((e) => e.event === "run_started" && e.quest === 1), "epic must not be dispatched");
+  // The skip line names it as an epic and points at the orchestrate skill.
+  assert.match(err.join("\n"), /is an epic/);
+  // Direct dispatch stays allowed: quest-run <id> on the epic runs it (the
+  // shim drives it to complete), proving the block is --ready-only.
+  writeScenario({ sessions: ["complete"], questId: 1 });
+  const { io: io2 } = runnerIo();
+  assert.equal(await runnerRun(["1"], io2), 0);
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "complete", "direct quest-run on an epic stays allowed");
+});
+
 test("--ready --parallel promotes a quest whose dependency just completed", async () => {
   await createQuest("claude", [], "First");
   await createQuest("claude", ["--depends-on", "1"], "Second");
