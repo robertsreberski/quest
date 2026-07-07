@@ -32,6 +32,15 @@ the whole trick.
 
 ## Install
 
+### CLI (any environment)
+
+```bash
+npm install -g quest-loop
+```
+
+Puts `quest` and `quest-run` on your PATH everywhere — no harness required.
+The plugin installs below add the skills, agents, and hooks on top.
+
 ### Claude Code
 
 ```bash
