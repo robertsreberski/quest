@@ -1,14 +1,14 @@
 ---
 id: 2
 title: quest CLI with local backend and help layer
-status: todo
+status: complete
 priority: p0
 worker: claude
 model: inherit
 max_iterations: 8
 depends_on: [1]
 created: 2026-07-07T13:12:31Z
-updated: 2026-07-07T13:12:31Z
+updated: 2026-07-07T13:33:47Z
 ---
 
 # quest CLI with local backend and help layer
@@ -62,3 +62,13 @@ target). Protocol: `skills/protocol/references/protocol.md`.
 - GitHub backend (quest 3), runner (quest 5), hooks (quest 6).
 
 ## Checkpoints
+
+<!-- quest:checkpoint -->
+### 2026-07-07T13:33:47Z — quest_status: complete
+- iteration: 1
+- head_sha: 6668d0a
+- changed: M1 contract+frontmatter; M2 local store+config; M3 CLI dispatch+exit codes+--json; M4 help layer+snapshots; M5 lifecycle round-trip green on this store
+- validation_summary: `node --test "tests/*.test.mjs"` → 46 pass, 0 fail; `node bin/quest lint --all` → OK (9 records); `node bin/quest show 2 --json` → parsed record
+- failed_approaches: node --test tests/ (bare dir) hit MODULE_NOT_FOUND in this environment — test script uses an explicit glob instead
+
+Done-when enumeration: (1) full command surface on local backend — Done (init/create/list/show/start/checkpoint/cancel/edit/lint/amend/protocol/runs, all with --json). (2) exit codes 0/2/3/4/5/6 with precise messages + hints — Done, asserted in tests/cli.test.mjs. (3) help layer: state-aware bare quest, per-command --help with examples, guided init — Done, snapshot-tested (tests/snapshots/). (4) node --test green incl. lifecycle round-trip and frontmatter rejects — Done (46/46). (5) lint --all green on the hand-written bootstrap store — Done. (6) this checkpoint itself recorded via the CLI — Done (you are reading it).
