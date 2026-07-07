@@ -1,14 +1,14 @@
 ---
 id: 4
 title: Skills and agents, dual-harness
-status: in_progress
+status: complete
 priority: p1
 worker: claude
 model: inherit
 max_iterations: 8
 depends_on: [2]
 created: 2026-07-07T13:12:31Z
-updated: 2026-07-07T13:36:46Z
+updated: 2026-07-07T13:43:45Z
 ---
 
 # Skills and agents, dual-harness
@@ -54,3 +54,12 @@ sources: `skills/protocol/references/{protocol.md,contract-spec.md}`.
 - Runner integration (quest 5), hooks (quest 6).
 
 ## Checkpoints
+
+<!-- quest:checkpoint -->
+### 2026-07-07T13:43:45Z — quest_status: complete
+- iteration: 1
+- head_sha: 841e8a3
+- changed: five skills (protocol/plan/orchestrate/work/retro) with usability-contract structure + openai.yaml companions; quest-executor + quest-reviewer in .md+.toml; check-agent-parity gate
+- validation_summary: `node scripts/check-agent-parity.mjs` → parity: OK; `node scripts/check-hygiene.mjs` → OK; fresh-session gates via tmux: (a) haiku session with --plugin-dir self-explained quest + listed all 5 skills; (b) sonnet session authored quest via /quest:plan → `quest lint --all` OK (1 record); (c) opus session worked synthetic quest via /quest:work → `node cli.js --version` → 1.0.0 exit 0, spec-compliant complete checkpoint, green commit
+
+Done-when enumeration: (1) five SKILL.md with What/When/Input/Output header, worked example, Next: pointers, argument-hints — Done. (2) openai.yaml per skill — Done, parity-checked. (3) executor+reviewer .md+.toml + parity script — Done. (4) fresh Claude session gates a/b/c — Done via tmux user-session (headless children can't reach this machine's keychain; tmux runs in the user security session — evidence in checkpoints above). (5) Codex discovers skills via .agents/skills — Done (codex exec listed orchestrate/plan/protocol/retro/work).
