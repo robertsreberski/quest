@@ -1,14 +1,14 @@
 ---
 id: 15
 title: quest reopen verb: audited path from complete back into the loop
-status: in_progress
+status: complete
 priority: p1
 worker: claude
 model: opus
 effort: xhigh
 max_iterations: 8
 created: 2026-07-07T21:06:46Z
-updated: 2026-07-07T21:17:33Z
+updated: 2026-07-07T21:20:54Z
 ---
 
 # quest reopen verb: audited path from complete back into the loop
@@ -84,3 +84,21 @@ Committed 936bc20. --reason missing → ContractError (exit 5), mirroring cancel
 - validation_summary: `npm test` → 91 passed, 0 failed (+2: runner early-exit-suggests-reopen, cli reopen exit-5/round-trip)
 
 Committed 944617f. All CLI/help surfaces done. M5 remaining: docs (contract-spec.md, protocol.md, orchestrate SKILL.md, README) + check:parity/hygiene/manifests.
+
+<!-- quest:checkpoint -->
+### 2026-07-07T21:20:54Z — quest_status: complete
+- iteration: 5
+- changed: M5 docs done; quest reopen verb complete end-to-end across both backends, CLI, help, docs, and tests
+- validation_summary: `npm test` → 91 passed, 0 failed; `npm run check:parity` → OK; `npm run check:manifests` → OK; live `quest reopen 1 --reason ...` → complete→in_progress, reopen_reason recorded, absent from --ready, `quest lint --all` → OK; `quest checkpoint 1 --status in_progress` on the re-completed quest → exit 5 (TRANSITIONS.complete not widened)
+
+Done-when enumeration:
+1. reopen flips complete→in_progress both backends, appends reopen_reason cp, missing --reason exits 5, non-complete rejected by assertReopen — DONE (assertReopen in lib/contract.mjs; reopenQuest in store-local.mjs & store-github.mjs; cli/github/store-local tests + live e2e).
+2. assertTransition(complete,in_progress) still throws; hint points at quest reopen and keeps 'terminal' — DONE (contract.test.mjs new assertion + existing /terminal/ test still green; live hint shown).
+3. github reopens issue + swaps quest:complete→quest:in-progress via applyStatus, comment-first — DONE (store-github.reopenQuest; shim test asserts OPEN + label swap + reopen_reason comment last).
+4. quest-run early-exit stderr suggests quest reopen — DONE (runner.mjs io.errOut; runner.test asserts /already complete/ + /quest reopen 1 --reason/).
+5. editQuest on complete/cancelled errors with reopen-first/new-quest hint both backends — DONE (guards in both; store-local + github tests).
+6. reopened records lint clean before+after re-completion; no lint rules added/tightened — DONE (lintRecord untouched; store-local test + live lint OK).
+7. surfaces updated: store.mjs seam, cli.mjs handler (modeled on cancel), help.mjs COMMANDS.reopen + regenerated help-general.txt, contract-spec.md, protocol.md, orchestrate SKILL.md 'Reopening completed work', README CLI row — DONE.
+8. npm test passes with new tests in contract/store-local/store-github/cli — DONE (91 passed).
+Constraints honored: TRANSITIONS.complete stays []; cancelled fully terminal; reopened quests stay out of --ready; child-of-complete-epic reopen documented as warn-not-block. Out-of-scope (ledger/checkbox/token_usage) untouched.
+Note: check:hygiene reports 2 pre-existing violations in .quests/quests/015 & 016 record Context (personal /Users plan path), present since filing commit ea89b0d — dogfood store data (.quests/ is not in package.json files, so not shipped), outside quest 15 scope and outside its npm test loop; my code/skill/README edits are hygiene-clean. Commits 7b56113,8538f77,936bc20,944617f,763b30e.
