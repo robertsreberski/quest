@@ -4,7 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.2.0] — 2026-07-08
+
+### Added
+- `quest reopen <id> --reason <why>` — the audited exit from `complete`. Flips a
+  completed quest back to `in_progress` on both backends, recording the reason in
+  a real checkpoint via the new optional `reopen_reason` field; the GitHub backend
+  reopens the mirrored issue and swaps `quest:complete → quest:in-progress`.
+  `TRANSITIONS.complete` stays empty — a checkpoint can never resurrect a complete
+  quest; only the explicit verb can, and `cancelled` remains fully terminal.
+  Reopening a child of a complete parent epic warns on stderr that the epic's
+  verdict may be falsified. Reopened quests do not re-enter `quest list --ready`;
+  they are dispatched directly by id. `quest edit` on a complete or cancelled
+  quest now errors with a reopen-first / file-a-new-quest hint, and `quest-run`
+  on an already-complete quest suggests the verb instead of silently no-opping.
 
 ### Changed
 - Wave composition now treats epics (parent quests) as orchestrator-closed, not
