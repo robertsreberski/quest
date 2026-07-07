@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.1.1] — 2026-07-07
+
+### Fixed
+- Codex plugin hook config now uses the strict top-level `hooks` schema that
+  Codex accepts, removing the startup parse warning caused by an extra
+  `description` field.
+
+### Changed
+- Manifest validation now checks `hooks/hooks.json` for Codex-compatible
+  top-level fields before packaging or release.
+
 ## [0.1.0] — 2026-07-07
 
 First public release. The build of this release was itself executed as quests

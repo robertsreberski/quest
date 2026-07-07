@@ -1,5 +1,4 @@
 {
-  "description": "Quest goal-loop hooks: inject in-flight quest context at session start, and block quest-executor subagents that try to stop without recording a checkpoint.",
   "hooks": {
     "SessionStart": [
       {

@@ -60,10 +60,30 @@ const CODEX = ".codex-plugin/plugin.json";
 const codex = load(CODEX);
 for (const f of ["name", "description", "version", "skills"]) requireString(codex, CODEX, f);
 
+// hooks/hooks.json — Codex's plugin hook parser rejects unknown top-level
+// fields, so this file must remain a strict wrapper around the hooks object.
+const HOOKS = "hooks/hooks.json";
+const hookConfig = load(HOOKS);
+if (hookConfig != null) {
+  const topLevelKeys = Object.keys(hookConfig);
+  const unknownKeys = topLevelKeys.filter((key) => key !== "hooks");
+  if (unknownKeys.length) {
+    errors.push(`${HOOKS}: unknown top-level field(s): ${unknownKeys.join(", ")}; expected only "hooks"`);
+  }
+  if (
+    !Object.hasOwn(hookConfig, "hooks") ||
+    hookConfig.hooks == null ||
+    typeof hookConfig.hooks !== "object" ||
+    Array.isArray(hookConfig.hooks)
+  ) {
+    errors.push(`${HOOKS}: required field "hooks" must be an object`);
+  }
+}
+
 if (errors.length) {
   console.error("validate-manifests: FAILED");
   for (const e of errors) console.error(`  - ${e}`);
-  console.error(`\nvalidate-manifests: ${errors.length} manifest problem(s).`);
+  console.error(`\nvalidate-manifests: ${errors.length} manifest/hook config problem(s).`);
   process.exit(1);
 }
-console.log("validate-manifests: OK (3 manifests valid)");
+console.log("validate-manifests: OK (3 manifests and hook config valid)");
