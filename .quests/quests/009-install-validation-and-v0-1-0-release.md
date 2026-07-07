@@ -1,14 +1,14 @@
 ---
 id: 9
 title: Install validation and v0.1.0 release
-status: todo
+status: in_progress
 priority: p0
 worker: claude
 model: inherit
 max_iterations: 6
 depends_on: [8]
 created: 2026-07-07T13:12:31Z
-updated: 2026-07-07T13:12:31Z
+updated: 2026-07-07T15:12:16Z
 ---
 
 # Install validation and v0.1.0 release

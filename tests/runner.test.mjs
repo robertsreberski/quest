@@ -204,6 +204,66 @@ test("codex: narrated create_goal triggers exactly one corrective resume", async
   assert.match(calls[1].argv.join(" "), /create_goal tool now/);
 });
 
+test("codex: default sandbox is workspace-write in the built invocation", async () => {
+  await createQuest("codex");
+  const { io, out } = runnerIo();
+  const code = await runnerRun(["1", "--dry-run", "--json"], io);
+  assert.equal(code, 0);
+  const obj = JSON.parse(out[0]);
+  assert.equal(obj.worker, "codex");
+  const i = obj.args.indexOf("--sandbox");
+  assert.ok(i !== -1, "codex invocation must carry --sandbox");
+  assert.equal(obj.args[i + 1], "workspace-write", "default codex sandbox stays workspace-write");
+});
+
+test("codex: --codex-sandbox flag flows into the built codex invocation args", async () => {
+  await createQuest("codex");
+  const { io, out } = runnerIo();
+  const code = await runnerRun(["1", "--codex-sandbox", "danger-full-access", "--dry-run", "--json"], io);
+  assert.equal(code, 0);
+  const obj = JSON.parse(out[0]);
+  const i = obj.args.indexOf("--sandbox");
+  assert.equal(obj.args[i + 1], "danger-full-access", "--codex-sandbox must select the codex exec sandbox mode");
+});
+
+test("codex: config defaults.codex.sandbox selects the sandbox when no flag is given", async () => {
+  await createQuest("codex");
+  const cfgPath = join(storeDir, "config.json");
+  const cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
+  cfg.defaults = { ...cfg.defaults, codex: { ...cfg.defaults?.codex, sandbox: "read-only" } };
+  writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + "\n");
+  const { io, out } = runnerIo();
+  const code = await runnerRun(["1", "--dry-run", "--json"], io);
+  assert.equal(code, 0);
+  const obj = JSON.parse(out[0]);
+  const i = obj.args.indexOf("--sandbox");
+  assert.equal(obj.args[i + 1], "read-only", "config defaults.codex.sandbox should flow into the invocation");
+});
+
+test("codex: --codex-sandbox flag overrides config defaults.codex.sandbox", async () => {
+  await createQuest("codex");
+  const cfgPath = join(storeDir, "config.json");
+  const cfg = JSON.parse(readFileSync(cfgPath, "utf8"));
+  cfg.defaults = { ...cfg.defaults, codex: { ...cfg.defaults?.codex, sandbox: "read-only" } };
+  writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + "\n");
+  const { io, out } = runnerIo();
+  const code = await runnerRun(["1", "--codex-sandbox", "danger-full-access", "--dry-run", "--json"], io);
+  assert.equal(code, 0);
+  const obj = JSON.parse(out[0]);
+  const i = obj.args.indexOf("--sandbox");
+  assert.equal(obj.args[i + 1], "danger-full-access", "flag must win over the config default");
+});
+
+test("codex: --codex-sandbox rejects an illegal value with a usage error (exit 2)", async () => {
+  await createQuest("codex");
+  const { io, err } = runnerIo();
+  const code = await runnerRun(["1", "--codex-sandbox", "yolo", "--dry-run", "--json"], io);
+  assert.equal(code, 2, "an illegal sandbox mode is a usage error");
+  assert.match(err.join("\n"), /--codex-sandbox must be one of/);
+  // No silent escalation and nothing spawned.
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "todo");
+});
+
 test("--dry-run prints the invocation and spawns nothing", async () => {
   await createQuest("claude");
   writeScenario({ sessions: ["complete"] });

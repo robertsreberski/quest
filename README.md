@@ -158,6 +158,14 @@ full base protocol lives in
   across dependency waves, up to N at a time.
 - **`--notify '<cmd>'`** — runs a templated command on run start/stop so you get
   pinged; notify failures are isolated from the run.
+- **`--codex-sandbox <mode>`** — selects the `codex exec` sandbox
+  (`read-only` | `workspace-write` | `danger-full-access`; resolved as flag →
+  config `defaults.codex.sandbox` → default `workspace-write`). Honest tradeoff:
+  the default **`workspace-write` write-protects `.git`, so a codex worker cannot
+  `git commit` under it** (the `index.lock` write fails). A quest whose worker
+  must commit has to opt into **`danger-full-access`** — which also grants full
+  disk and network access. The runner never escalates the sandbox silently; the
+  safe `workspace-write` stays the default. (Claude workers ignore this flag.)
 
 Inspect activity with `quest runs --active`.
 
