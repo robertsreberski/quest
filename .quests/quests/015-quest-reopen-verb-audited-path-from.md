@@ -1,14 +1,14 @@
 ---
 id: 15
 title: quest reopen verb: audited path from complete back into the loop
-status: todo
+status: in_progress
 priority: p1
 worker: claude
 model: opus
 effort: xhigh
 max_iterations: 8
 created: 2026-07-07T21:06:46Z
-updated: 2026-07-07T21:06:46Z
+updated: 2026-07-07T21:08:17Z
 ---
 
 # quest reopen verb: audited path from complete back into the loop
