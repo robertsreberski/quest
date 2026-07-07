@@ -264,6 +264,26 @@ test("codex: --codex-sandbox rejects an illegal value with a usage error (exit 2
   assert.equal(local.loadQuest(storeDir, 1).front.status, "todo");
 });
 
+test("early-exit on an already-complete quest suggests quest reopen and spawns nothing", async () => {
+  await createQuest("claude");
+  local.startQuest(storeDir, 1);
+  local.appendCheckpoint(storeDir, 1, { quest_status: "complete", iteration: 1, changed: "done", validation_summary: "`node --test` → green" });
+  const { io, out, err } = runnerIo();
+
+  const code = await runnerRun(["1"], io);
+  assert.equal(code, 0, "already-complete is a clean early exit");
+  assert.match(err.join("\n"), /already complete/);
+  assert.match(err.join("\n"), /quest reopen 1 --reason/);
+  // Nothing spawned: the quest stays complete and the worker shim was never called.
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "complete");
+  assert.ok(!existsSync(scenarioPath + ".claude.calls.jsonl"), "must not spawn the worker on a complete quest");
+  // The run is journaled honestly as a 0-session complete (no-op).
+  const ended = runsEvents().find((e) => e.event === "run_ended");
+  assert.equal(ended.final_status, "complete");
+  assert.equal(ended.iterations, 0);
+  assert.ok(out.join("\n").length >= 0);
+});
+
 test("--dry-run prints the invocation and spawns nothing", async () => {
   await createQuest("claude");
   writeScenario({ sessions: ["complete"] });

@@ -8,7 +8,7 @@ model: opus
 effort: xhigh
 max_iterations: 8
 created: 2026-07-07T21:06:46Z
-updated: 2026-07-07T21:13:58Z
+updated: 2026-07-07T21:16:22Z
 ---
 
 # quest reopen verb: audited path from complete back into the loop
@@ -68,3 +68,11 @@ TRANSITIONS.complete left as [] — assertReopen is a separate path used only by
 - validation_summary: `npm test` → 86 passed, 0 failed (+3 store-local tests: reopen→re-complete lifecycle lint-clean incl. not-in-ready assertion, reopen rejects non-complete, edit-on-complete/cancelled throws)
 
 Committed 8538f77.
+
+<!-- quest:checkpoint -->
+### 2026-07-07T21:16:22Z — quest_status: in_progress
+- iteration: 3
+- changed: M3: store-github reopenQuest (comment-first: post audited checkpoint, refresh meta, applyStatus in_progress swaps quest:complete→quest:in-progress + reopens issue) + editQuest complete/cancelled guard; store.mjs seam adds reopenQuest for both backends. Pulled the M4 CLI reopen handler + help COMMANDS.reopen + regenerated help-general.txt snapshot forward so the github round-trip test drives through cli.mjs like its siblings (single green commit).
+- validation_summary: `npm test` → 89 passed, 0 failed (+3 github shim tests: issue OPEN + label swap + reopen_reason comment; reopen missing-reason exits 5 no-mutation; edit-on-complete exits 5 no-comment). help snapshot test green after regen.
+
+Committed 936bc20. --reason missing → ContractError (exit 5), mirroring cancel — no UsageError pre-check. M4 remaining: runner early-exit stderr hint + its test + cli exit-5 test.

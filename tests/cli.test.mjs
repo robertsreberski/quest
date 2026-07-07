@@ -144,6 +144,36 @@ test("edit requires rationale and records expansion", async () => {
   assert.match(out.join("\n"), /- \[ \] extra/);
 });
 
+test("reopen without --reason exits 5; with a reason flips complete → in_progress", async () => {
+  await run(["init"], io);
+  await run(CREATE, io);
+  await run(["start", "1"], io);
+  await run(["checkpoint", "1", "--status", "complete", "--summary", "done", "--validation", "`npm test` → green"], io);
+
+  // Missing reason is a contract violation (exit 5), not a usage error.
+  assert.equal(await run(["reopen", "1"], io), 5);
+  assert.match(err.join("\n"), /reason/);
+  // Still complete — nothing changed.
+  out.length = 0;
+  await run(["show", "1", "--json"], io);
+  assert.equal(JSON.parse(out[0]).status, "complete");
+
+  err.length = 0;
+  out.length = 0;
+  assert.equal(await run(["reopen", "1", "--reason", "review found criticals", "--json"], io), 0);
+  assert.equal(JSON.parse(out[0]).status, "in_progress");
+  out.length = 0;
+  await run(["show", "1", "--json"], io);
+  const shown = JSON.parse(out[0]);
+  assert.equal(shown.status, "in_progress");
+  assert.equal(shown.checkpoints.at(-1).fields.reopen_reason, "review found criticals");
+  // Reopened quests do not re-enter --ready (status in_progress, not todo).
+  out.length = 0;
+  await run(["list", "--ready", "--json"], io);
+  assert.deepEqual(JSON.parse(out[0]), []);
+  assert.equal(await run(["lint", "--all"], io), 0);
+});
+
 test("amend numbers amendments and protocol prints them", async () => {
   await run(["init"], io);
   assert.equal(await run(["amend", "--text", "Cite evidence in every ruling."], io), 0);
