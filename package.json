@@ -5,8 +5,8 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "bin": {
-    "quest": "./bin/quest",
-    "quest-run": "./bin/quest-run"
+    "quest": "bin/quest",
+    "quest-run": "bin/quest-run"
   },
   "files": [
     "bin/",
