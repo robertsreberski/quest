@@ -41,18 +41,28 @@ function checkpoint(status) {
   quest(["checkpoint", id, "--status", status, "--summary", `shim ${status} session ${n}`, "--validation", validation]);
 }
 
-if (action === "complete" || action === "blocked" || action === "in_progress") {
-  checkpoint(action);
+// action "hang" → never produce output or exit; block forever so the runner's
+// --session-timeout must kill us (drives the session-timeout path).
+if (action === "hang") {
+  setInterval(() => {}, 1 << 30); // keep the event loop alive until SIGKILL
+} else {
+  runNormal();
 }
-// action "nothing" → do not record a checkpoint (drives the stall path).
 
-const result = {
-  type: "result",
-  subtype: "success",
-  is_error: false,
-  result: `shim session ${n} action=${action}`,
-  session_id: scenario.session_id || `claude-sess-${n}`,
-  total_cost_usd: typeof scenario.cost_usd === "number" ? scenario.cost_usd : 0.01,
-  usage: { input_tokens: 100, output_tokens: 50 },
-};
-process.stdout.write(JSON.stringify(result) + "\n");
+function runNormal() {
+  if (action === "complete" || action === "blocked" || action === "in_progress") {
+    checkpoint(action);
+  }
+  // action "nothing" → do not record a checkpoint (drives the stall path).
+
+  const result = {
+    type: "result",
+    subtype: "success",
+    is_error: false,
+    result: `shim session ${n} action=${action}`,
+    session_id: scenario.session_id || `claude-sess-${n}`,
+    total_cost_usd: typeof scenario.cost_usd === "number" ? scenario.cost_usd : 0.01,
+    usage: { input_tokens: 100, output_tokens: 50 },
+  };
+  process.stdout.write(JSON.stringify(result) + "\n");
+}

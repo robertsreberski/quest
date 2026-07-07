@@ -112,6 +112,30 @@ test("stall: 2 sessions without a checkpoint → runner-recorded blocked, exit 1
   assert.match(recordText(), /runner stall enforcement/);
 });
 
+test("session timeout: a hung worker is killed, counts as a stall, 2 → blocked, exit 10", async () => {
+  await createQuest("claude");
+  // Both sessions hang forever; --session-timeout must kill each and count it
+  // toward the stall counter (no checkpoint), reaching the 2-stall blocked path.
+  writeScenario({ sessions: ["hang", "hang"] });
+  const { io } = runnerIo();
+
+  const started = Date.now();
+  const code = await runnerRun(["1", "--session-timeout", "1"], io); // 1s per session
+  const elapsed = Date.now() - started;
+
+  assert.equal(code, 10, "two hung sessions must end blocked (stall), exit 10");
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "blocked");
+  assert.match(recordText(), /2 consecutive sessions ended without a checkpoint/);
+  assert.match(recordText(), /runner stall enforcement/);
+
+  // The runner returns within the timeout window (~1s × 2), not hanging forever.
+  assert.ok(elapsed < 20000, `runner should return promptly after killing hung workers (was ${elapsed}ms)`);
+
+  const iters = runsEvents().filter((e) => e.event === "iteration_finished");
+  assert.equal(iters.length, 2, "both hung sessions should be journaled");
+  assert.ok(iters.every((e) => e.timed_out === true), "each hung session is journaled timed_out: true");
+});
+
 test("iteration budget: exceeding --max-iterations → blocked, exit 11", async () => {
   await createQuest("claude");
   writeScenario({ sessions: ["nothing"] });

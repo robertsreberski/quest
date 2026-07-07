@@ -148,8 +148,12 @@ full base protocol lives in
 - **Workers** — `claude` (`claude -p`) or `codex` (`codex exec`), selected per
   quest. Both run in **native goal mode** with a machine-verifiable completion
   condition.
-- **Budgets** — deterministic iteration, cost, and token caps; two sessions
-  without a new checkpoint auto-writes a `blocked` checkpoint and stops.
+- **Budgets** — deterministic iteration, cost, token, and per-session
+  wall-clock (`--session-timeout`, default 1800s) caps; two sessions without a
+  new checkpoint (a killed hung session counts as one) auto-writes a `blocked`
+  checkpoint and stops.
+- **Backends** — drives `local` and `github`-backed stores alike; all record IO
+  goes through the `quest` CLI, and the runs journal stays local.
 - **`--parallel N`** — with `--ready`, promotes and works newly-ready quests
   across dependency waves, up to N at a time.
 - **`--notify '<cmd>'`** — runs a templated command on run start/stop so you get
@@ -173,8 +177,9 @@ Inspect activity with `quest runs --active`.
 quest init --backend github --repo owner/name
 ```
 
-> **Note:** the GitHub backend is landing in this build (tracked as quest 3).
-> Until it ships, use the default `local` backend.
+The GitHub backend (`quest init --backend github`) and the headless runner
+(`quest-run`) work together — `quest-run <id>` drives quests in a github-backed
+store exactly as it does locally.
 
 ## Exit codes
 
