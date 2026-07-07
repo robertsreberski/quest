@@ -1,14 +1,14 @@
 ---
 id: 5
 title: Headless runner with native goal mode on both workers
-status: todo
+status: in_progress
 priority: p1
 worker: claude
 model: inherit
 max_iterations: 10
 depends_on: [2, 4]
 created: 2026-07-07T13:12:31Z
-updated: 2026-07-07T13:12:31Z
+updated: 2026-07-07T13:59:51Z
 ---
 
 # Headless runner with native goal mode on both workers
@@ -61,3 +61,11 @@ runner" mirrored in `skills/orchestrate` references. Final-report schema:
 - Additional worker types beyond claude/codex.
 
 ## Checkpoints
+
+<!-- quest:checkpoint -->
+### 2026-07-07T13:59:51Z — quest_status: in_progress
+- iteration: 1
+- changed: bin/quest-run + lib/runner.mjs + lib/workers.mjs (both adapters) + tests/runner.test.mjs + tests/shims/{claude,codex} implemented
+- validation_summary: `node --test tests/runner.test.mjs` → 10 passed, 0 failed; `node --test tests/*.test.mjs` → 70 passed, 0 failed
+
+Runner+adapters+unit tests green locally. Iteration boundary before live smokes (codex direct, claude via tmux). Note: repo hygiene gate currently trips on another executor's committed record 007-oss-hygiene-and-ci.md (parallel work in this shared tree) — not in quest 5's validation loop and not from my files.
