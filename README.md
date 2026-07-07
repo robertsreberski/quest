@@ -62,14 +62,41 @@ claude --plugin-dir .
 
 ### Codex
 
-The plugin ships a `.codex-plugin/` manifest and discovers its skills from the
-repo checkout (`skills/`, surfaced under `.agents/` for Codex). Until a public
-Codex marketplace listing is approved upstream, wire it up from a clone or
-submodule:
+The plugin ships a `.codex-plugin/` manifest plus the same Git marketplace
+metadata used by Claude Code. Install the marketplace once, then install the
+plugin from that marketplace:
 
 ```bash
-git clone https://github.com/robertsreberski/quest
-# add the checkout to your Codex plugin/skill discovery path (clone or submodule)
+codex plugin marketplace add robertsreberski/quest
+codex plugin add quest@quest
+```
+
+Start a new Codex thread after installing so the skills and hooks are loaded.
+Verify the install with:
+
+```bash
+codex plugin list --marketplace quest
+codex debug prompt-input "noop"
+```
+
+`codex debug prompt-input "noop"` should not print any hook parse warnings.
+
+#### Updating the Codex plugin
+
+Codex installs plugins from a marketplace snapshot. Pulling this Git repo or
+publishing a new tag is not enough to update the already-installed plugin cache.
+Refresh the marketplace snapshot, then reinstall the plugin from it:
+
+```bash
+codex plugin marketplace upgrade quest
+codex plugin add quest@quest
+codex plugin list --marketplace quest
+```
+
+Then start a new Codex thread. If the update contains hook changes, re-run:
+
+```bash
+codex debug prompt-input "noop"
 ```
 
 The CLI (`quest`, `quest-run`) is harness-agnostic — it works the same whether
