@@ -94,4 +94,8 @@ When reviewing a finished iteration or run, the orchestrator rules one of:
 - **Small** — one quest, worked inline in the current session.
 - **Medium** — one quest dispatched to an executor (subagent or headless run).
 - **Large** — an epic (parent quest) with child quests in dependency waves via
-  `depends_on`; orchestrate wave by wave.
+  `depends_on`; orchestrate wave by wave. The epic itself is never dispatched to
+  a worker: it is gated out of `--ready` while any child is non-terminal, and
+  once the children are done the orchestrator closes it inline (verify children,
+  run the epic validation loop, checkpoint). Keep the epic contract
+  integration-level; its milestones must not mirror the children 1:1.

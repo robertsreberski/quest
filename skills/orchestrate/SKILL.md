@@ -49,6 +49,35 @@ trails, and escalations only where a human ruling is genuinely needed.
 6. **Wave done?** When `quest list --ready` empties and nothing is in flight:
    run `/quest:retro` before starting the next wave.
 
+## Closing an epic
+
+An epic is an ordinary quest that other quests name as `parent`. It is **never
+dispatched to a worker**: `quest list --ready` gates it out while any child is
+non-terminal, and `quest-run --ready` refuses it even once every child is
+terminal (a direct `quest-run <id>` on an epic still runs, but don't — it burns
+a worker on pure verification). Close it inline yourself, spending zero worker
+tokens:
+
+1. **Verify the children are genuinely done:**
+   ```bash
+   quest list --parent <id> --json   # is every child complete or cancelled?
+   ```
+   A `cancelled` child is terminal too — account for why it was dropped; it does
+   not block the epic and you do not wait on it.
+2. **Run the epic's own validation loop** (the integration-level check in its
+   record) and read each child's completion evidence — this is the real work of
+   closing an epic.
+3. **Record the verdict on the epic itself:**
+   ```bash
+   quest start <id>
+   quest checkpoint <id> --status complete \
+     --summary "epic closed inline — children #a #b #c verified, integration loop green" \
+     --validation "<epic validation loop> → <observed result>"
+   ```
+   The checkpoint must **enumerate each child and each epic Done-when item** with
+   its evidence — the same bar every quest meets, just discharged by you inline
+   rather than by a dispatched worker.
+
 ## Reopening completed work
 
 When review (or reality) finds a defect in a quest you already marked

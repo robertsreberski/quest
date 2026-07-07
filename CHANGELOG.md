@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Wave composition now treats epics (parent quests) as orchestrator-closed, not
+  worker-dispatched. `quest list --ready` excludes any quest with a non-terminal
+  child (a child in complete or cancelled is terminal, so a cancelled child no
+  longer wedges its epic), in both the local and GitHub backends. `quest-run
+  --ready` additionally refuses to auto-dispatch a quest that has children even
+  once they are all terminal, logging an actionable "is an epic — close it inline
+  per /quest:orchestrate" line; a direct `quest-run <id>` on an epic stays
+  allowed. The orchestrate skill gains a "Closing an epic" procedure and the plan
+  skill documents that epic contracts are integration-level only.
+
 ### Fixed
 - SubagentStop hook now derives the quest-executor id by parsing the transcript
   JSONL per-entry and matching the `quest show <id> --json` marker only inside

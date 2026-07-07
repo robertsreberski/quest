@@ -193,6 +193,12 @@ full base protocol lives in
   goes through the `quest` CLI, and the runs journal stays local.
 - **`--parallel N`** — with `--ready`, promotes and works newly-ready quests
   across dependency waves, up to N at a time.
+- **Epics are never auto-dispatched** — a quest with children stays out of
+  `--ready` until every child is terminal, and `quest-run --ready` refuses it
+  even then (it logs an "is an epic" skip line). Epics are closed by the
+  orchestrator inline per `/quest:orchestrate`, not by burning a worker run on
+  pure verification. A direct `quest-run <id>` on an epic still runs, if you
+  really mean to.
 - **`--notify '<cmd>'`** — runs a templated command on run start/stop so you get
   pinged; notify failures are isolated from the run.
 - **`--codex-sandbox <mode>`** — selects the `codex exec` sandbox

@@ -26,6 +26,15 @@ For epics: create the parent first, then children with `--parent <id>` and
 `--depends-on` expressing the real order. `quest list --ready` becomes the
 dispatch queue — that is the whole wave mechanic.
 
+Keep the **epic itself thin**. Its Done-when is **integration-level only**: it
+checks that the children compose into a working whole (the end-to-end behavior,
+the parity gate, the shipped docs), never a restatement of each child's
+Done-when. Its milestones must **not mirror the children 1:1** — the children
+*are* the decomposition, so re-listing them in the epic body earns no worker and
+wastes review. Give the epic an objective, integration Done-when, and the
+validation loop the orchestrator runs to close it inline (it is never
+dispatched — see `/quest:orchestrate` "Closing an epic").
+
 ## Author the contract
 
 Every field earns its place:

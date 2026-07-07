@@ -72,7 +72,7 @@ updated: 2026-07-07T14:00:00Z
 | `effort` | no | reasoning effort passed to the worker (e.g. `xhigh`); omitted = config default |
 | `max_iterations` | yes | positive integer (counts runner **sessions**) |
 | `max_cost` | no | USD number; omitted = uncapped |
-| `parent` | no | quest id (epic linking; children derived by scanning) |
+| `parent` | no | quest id (epic linking; children derived by scanning). A quest with children is an epic: excluded from `--ready` until every child is terminal (complete/cancelled), and closed by the orchestrator inline — never dispatched to a worker |
 | `depends_on` | no | list of quest ids (wave ordering) |
 | `created` / `updated` | yes | UTC ISO-8601 `…Z` |
 

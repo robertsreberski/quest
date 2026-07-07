@@ -9,7 +9,7 @@ effort: xhigh
 max_iterations: 8
 depends_on: [15]
 created: 2026-07-07T21:07:04Z
-updated: 2026-07-07T21:50:00Z
+updated: 2026-07-07T21:51:44Z
 ---
 
 # Epic readiness gate and orchestrator-side closure
@@ -53,3 +53,10 @@ Design fixed at filing time (retro of the test-mario store); ruling: epics stay 
 - head_sha: 365d1e2
 - changed: M1 done — readyQuests epic gate added in store-local.mjs and store-github.mjs (parent with any non-terminal child excluded; cancelled child is terminal and unblocks)
 - validation_summary: `node --test tests/store-local.test.mjs tests/store-github.test.mjs` → 26 passed 0 fail; `npm test` → 96 passed 0 fail; `npm run check:parity` → parity: OK; `npm run check:hygiene` → hygiene: OK
+
+<!-- quest:checkpoint -->
+### 2026-07-07T21:51:44Z — quest_status: in_progress
+- iteration: 2
+- head_sha: 422aba9
+- changed: M2 done — runReady in runner.mjs skips ready epics (quests other quests name as parent), logs actionable /quest:orchestrate close-inline line, dispatches no worker; direct quest-run <id> stays allowed
+- validation_summary: `node --test tests/runner.test.mjs` → 22 passed 0 fail (new epic-skip test asserts no run_started for epic id + stderr /is an epic/ + direct run completes); `npm test` → 97 passed 0 fail; `npm run check:parity` → parity: OK; `npm run check:hygiene` → hygiene: OK
