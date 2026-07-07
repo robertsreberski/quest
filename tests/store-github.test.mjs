@@ -101,6 +101,63 @@ test("github lifecycle: start → checkpoint → complete, with identical checkp
   assert.equal(await run(["lint", "--all"], io()), 0);
 });
 
+test("github reopen: complete → in_progress reopens the issue, swaps the label, comments the reopen_reason", async () => {
+  await run(["init", "--backend", "github", "--repo", "o/r"], io());
+  await run(CREATE, io());
+  await run(["start", "1"], io());
+  await run(["checkpoint", "1", "--status", "complete", "--summary", "all done", "--validation", "`node --test` → 10 passed"], io());
+
+  // Precondition: the completed issue is CLOSED and carries quest:complete.
+  let state = JSON.parse(readFileSync(statePath, "utf8"));
+  assert.equal(state.issues["1"].state, "CLOSED");
+  assert.ok(state.issues["1"].labels.some((l) => l.name === "quest:complete"));
+
+  assert.equal(await run(["reopen", "1", "--reason", "review found npm audit criticals"], io()), 0);
+
+  state = JSON.parse(readFileSync(statePath, "utf8"));
+  // Issue is OPEN again, label swapped complete → in-progress.
+  assert.equal(state.issues["1"].state, "OPEN");
+  assert.ok(state.issues["1"].labels.some((l) => l.name === "quest:in-progress"));
+  assert.ok(!state.issues["1"].labels.some((l) => l.name === "quest:complete"));
+  // Comment-first order: the reopen appends one audited checkpoint comment
+  // (complete checkpoint + reopen checkpoint = 2 comments on this issue).
+  const comments = state.issues["1"].comments;
+  assert.equal(comments.length, 2);
+  const reopenComment = comments.at(-1);
+  assert.ok(reopenComment.body.includes("<!-- quest:checkpoint -->"));
+  assert.match(reopenComment.body, /quest_status: in_progress/);
+  assert.match(reopenComment.body, /- reopen_reason: review found npm audit criticals/);
+
+  // show --json now reports in_progress and lint --all stays clean.
+  out.length = 0;
+  assert.equal(await run(["show", "1", "--json"], io()), 0);
+  assert.equal(JSON.parse(out[0]).status, "in_progress");
+  assert.equal(await run(["lint", "--all"], io()), 0);
+});
+
+test("github reopen without --reason exits 5 and mutates nothing", async () => {
+  await run(["init", "--backend", "github", "--repo", "o/r"], io());
+  await run(CREATE, io());
+  await run(["start", "1"], io());
+  await run(["checkpoint", "1", "--status", "complete", "--summary", "done", "--validation", "`node --test` → 10 passed"], io());
+  const before = readFileSync(statePath, "utf8");
+  assert.equal(await run(["reopen", "1"], io()), 5);
+  assert.match(err.join("\n"), /reason/);
+  assert.equal(readFileSync(statePath, "utf8"), before, "no gh mutation on a missing reason");
+});
+
+test("github edit on a complete quest exits 5 and comments nothing", async () => {
+  await run(["init", "--backend", "github", "--repo", "o/r"], io());
+  await run(CREATE, io());
+  await run(["start", "1"], io());
+  await run(["checkpoint", "1", "--status", "complete", "--summary", "done", "--validation", "`node --test` → 10 passed"], io());
+  const commentsBefore = JSON.parse(readFileSync(statePath, "utf8")).issues["1"].comments.length;
+  assert.equal(await run(["edit", "1", "--add-done-when", "late add", "--rationale", "missed a case"], io()), 5);
+  assert.match(err.join("\n"), /complete/);
+  const commentsAfter = JSON.parse(readFileSync(statePath, "utf8")).issues["1"].comments.length;
+  assert.equal(commentsAfter, commentsBefore, "edit on complete must not comment");
+});
+
 test("illegal transition (todo → complete) exits 5 and mutates nothing", async () => {
   await run(["init", "--backend", "github", "--repo", "o/r"], io());
   await run(CREATE, io());

@@ -8,7 +8,7 @@ model: opus
 effort: xhigh
 max_iterations: 8
 created: 2026-07-07T21:06:46Z
-updated: 2026-07-07T21:13:05Z
+updated: 2026-07-07T21:13:58Z
 ---
 
 # quest reopen verb: audited path from complete back into the loop
@@ -60,3 +60,11 @@ Full design in approved plan /Users/robertsreberski/.claude/plans/please-evaluat
 - validation_summary: `npm test` → 83 passed, 0 failed (was 80; +3 contract tests: assertReopen matrix, reopen_reason round-trip, terminal-hint points at reopen)
 
 TRANSITIONS.complete left as [] — assertReopen is a separate path used only by the reopen verb. Committed 7b56113.
+
+<!-- quest:checkpoint -->
+### 2026-07-07T21:13:58Z — quest_status: in_progress
+- iteration: 2
+- changed: M2: store-local reopenQuest(dir,id,reason) modeled on cancelQuest — assertReopen guard, flips complete→in_progress, appends a real in_progress checkpoint carrying reopen_reason; editQuest now throws on complete (reopen-first hint) and cancelled (file-new-quest hint)
+- validation_summary: `npm test` → 86 passed, 0 failed (+3 store-local tests: reopen→re-complete lifecycle lint-clean incl. not-in-ready assertion, reopen rejects non-complete, edit-on-complete/cancelled throws)
+
+Committed 8538f77.
