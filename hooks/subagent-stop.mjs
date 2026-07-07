@@ -3,12 +3,17 @@
 // recording a checkpoint — the protocol's "no stop without a checkpoint" rule,
 // enforced deterministically.
 //
-// A subagent counts as a quest-executor iff its transcript contains a
-// `quest show <id> --json` invocation (the mandatory orientation marker). We take
-// the FIRST id. No marker → not our concern, allow silently. We then compare the
-// quest's latest checkpoint against the subagent's start time (the transcript's
-// first timestamp): a checkpoint newer than start clears the stop; so does a
-// terminal store status (complete/blocked/cancelled) reached during the run.
+// A subagent counts as a quest-executor iff one of its transcript entries records
+// an actual `quest show <id> --json` *command invocation* — a tool_use block whose
+// shell command carries the marker. We parse the JSONL per-entry and inspect only
+// tool_use command inputs; prose, quoted skill text, examples, and echoed file
+// contents live in text blocks and tool_result content (never in a tool_use
+// command), so the `quest show 12 --json` examples in the skills can no longer key
+// the detection. The FIRST real invocation wins (deterministic, transcript order).
+// No real invocation → not our concern, allow silently. We then compare the quest's
+// latest checkpoint against the subagent's start time (the transcript's first
+// timestamp): a checkpoint newer than start clears the stop; so does a terminal
+// store status (complete/blocked/cancelled) reached during the run.
 //
 // Conservative by construction: any missing/unreadable input or parse failure →
 // allow (exit 0), with a one-line stderr diagnostic. We never false-positive-block
@@ -57,6 +62,45 @@ function firstTimestamp(text) {
   return null;
 }
 
+// A tool_use block's shell command, or null. Bash invocations carry the command
+// under `input.command`; only that field is a real command invocation. We never
+// scan other input fields (e.g. an Edit's new_string or a Read's file_path), which
+// could echo skill text and re-introduce the false positive.
+function commandOf(input) {
+  return input && typeof input === "object" && typeof input.command === "string" ? input.command : null;
+}
+
+// The marker id from one transcript entry, considering only tool_use command
+// invocations. Assistant messages carry an array of content blocks; string content
+// (plain prose) and tool_result blocks (echoed output/file contents) are ignored.
+function markerIdInEntry(entry) {
+  const msg = entry && typeof entry === "object" ? entry.message : null;
+  const content = msg && typeof msg === "object" ? msg.content : null;
+  if (!Array.isArray(content)) return null; // string content is prose, never an invocation
+  for (const block of content) {
+    if (!block || typeof block !== "object" || block.type !== "tool_use") continue;
+    const cmd = commandOf(block.input);
+    if (typeof cmd !== "string") continue;
+    const m = MARKER.exec(cmd);
+    if (m) return Number(m[1]);
+  }
+  return null;
+}
+
+// The executor's quest id = the FIRST `quest show <id> --json` that appears as a
+// real command invocation, scanning entries in transcript order. Returns id or
+// null. Per-entry parsing is what keeps skill-text examples from keying detection.
+function executorQuestId(text) {
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    let entry;
+    try { entry = JSON.parse(line); } catch { continue; }
+    const id = markerIdInEntry(entry);
+    if (id != null) return id;
+  }
+  return null;
+}
+
 try {
   const raw = await readStdin();
   let payload = {};
@@ -69,9 +113,8 @@ try {
   try { transcript = readFileSync(transcriptPath, "utf8"); }
   catch (err) { diag(`cannot read transcript (${err.code || err.message}); allowing`); allow(); }
 
-  const m = MARKER.exec(transcript);
-  if (!m) allow(); // not a quest-executor subagent — leave it entirely alone, silently
-  const id = Number(m[1]);
+  const id = executorQuestId(transcript);
+  if (id == null) allow(); // no real `quest show <id> --json` invocation — leave it alone, silently
 
   // Prefer an explicit start field if a future payload carries one; else the
   // transcript's first timestamp.

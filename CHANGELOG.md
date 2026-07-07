@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- SubagentStop hook now derives the quest-executor id by parsing the transcript
+  JSONL per-entry and matching the `quest show <id> --json` marker only inside
+  real tool_use command invocations — never prose, examples, or echoed file
+  contents. This removes a false positive where skill-text examples (e.g.
+  `quest show 12 --json`) keyed the detection ahead of the executor's real
+  orientation call. The first real invocation wins (deterministic); conservative
+  allow-on-ambiguity is preserved.
+
 ## [0.1.1] — 2026-07-07
 
 ### Fixed

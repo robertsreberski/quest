@@ -15,6 +15,8 @@ const SESSION_START = new URL("../hooks/session-start.mjs", import.meta.url).pat
 const SUBAGENT_STOP = new URL("../hooks/subagent-stop.mjs", import.meta.url).pathname;
 const EXECUTOR_TRANSCRIPT = new URL("./fixtures/executor-transcript.jsonl", import.meta.url).pathname;
 const UNRELATED_TRANSCRIPT = new URL("./fixtures/unrelated-transcript.jsonl", import.meta.url).pathname;
+const SKILL_PROSE_TRANSCRIPT = new URL("./fixtures/skill-prose-transcript.jsonl", import.meta.url).pathname;
+const MULTI_INVOCATION_TRANSCRIPT = new URL("./fixtures/multi-invocation-transcript.jsonl", import.meta.url).pathname;
 
 // Clean env: strip QUEST_DIR/QUEST_BACKEND so store discovery is driven purely by
 // the payload cwd, matching how the hook runs inside a real session.
@@ -79,6 +81,44 @@ test("SubagentStop: a stale checkpoint (older than start) still blocks", async (
   const res = fire(SUBAGENT_STOP, { ...stopPayload(EXECUTOR_TRANSCRIPT), started_at: "2099-01-01T00:00:00Z" });
   assert.equal(res.status, 0);
   assert.equal(JSON.parse(res.stdout.trim()).decision, "block");
+});
+
+// (b'') REGRESSION (quest 15 executor false positive): the transcript's FIRST
+// raw-text `quest show <id> --json` match is a skill-text example (quest 12), in
+// user prose, an assistant text block, and an echoed SKILL.md tool_result — all
+// before the real `quest show 1 --json` command invocation. The hook must key on
+// the real id (1), not the prose id (12). Under the old raw-text regex this keyed
+// quest 12 (absent from the store → silent allow), so this test would fail with an
+// empty stdout; keyed correctly it blocks quest 1.
+test("SubagentStop: skill-text quest-id example never keys detection (quest 15 regression)", async () => {
+  await seedQuest(); // quest 1, in_progress, zero checkpoints
+  const res = fire(SUBAGENT_STOP, stopPayload(SKILL_PROSE_TRANSCRIPT));
+  assert.equal(res.status, 0);
+  const decision = JSON.parse(res.stdout.trim());
+  assert.equal(decision.decision, "block");
+  assert.equal(
+    decision.reason,
+    "quest 1: record a checkpoint via `quest checkpoint 1` before stopping (protocol: no stop without a checkpoint)",
+    "must key the real invocation (quest 1), never the skill-text example (quest 12)",
+  );
+});
+
+// Determinism: with multiple real `quest show` invocations, the FIRST one wins.
+// The transcript invokes quest 2 then quest 1 (after skill prose citing quest 12);
+// the block must name quest 2.
+test("SubagentStop: first real quest-show invocation wins (deterministic)", async () => {
+  await run(["init"], io);
+  await run(["create", "--title", "One", "--objective", "o", "--done-when", "w", "--validation", "node --test"], io);
+  await run(["create", "--title", "Two", "--objective", "o", "--done-when", "w", "--validation", "node --test"], io);
+  const res = fire(SUBAGENT_STOP, stopPayload(MULTI_INVOCATION_TRANSCRIPT));
+  assert.equal(res.status, 0);
+  const decision = JSON.parse(res.stdout.trim());
+  assert.equal(decision.decision, "block");
+  assert.equal(
+    decision.reason,
+    "quest 2: record a checkpoint via `quest checkpoint 2` before stopping (protocol: no stop without a checkpoint)",
+    "the first real invocation (quest 2) wins over the later quest 1 call and the quest 12 prose",
+  );
 });
 
 // (c) a subagent whose transcript has no marker is never touched.
