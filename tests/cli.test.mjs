@@ -174,6 +174,34 @@ test("reopen without --reason exits 5; with a reason flips complete → in_progr
   assert.equal(await run(["lint", "--all"], io), 0);
 });
 
+test("reopening a child of a complete parent epic warns on stderr; a non-complete parent stays silent", async () => {
+  await run(["init"], io);
+
+  // Case 1: child of a COMPLETE parent epic → reopen succeeds AND warns.
+  await run([...CREATE, "--title", "Epic A"], io); // 1
+  await run([...CREATE, "--title", "Child A", "--parent", "1"], io); // 2
+  await run(["start", "1"], io);
+  await run(["checkpoint", "1", "--status", "complete", "--summary", "epic done", "--validation", "`npm test` → green"], io);
+  await run(["start", "2"], io);
+  await run(["checkpoint", "2", "--status", "complete", "--summary", "child done", "--validation", "`npm test` → green"], io);
+
+  err.length = 0;
+  assert.equal(await run(["reopen", "2", "--reason", "review found a defect"], io), 0);
+  const warn = err.join("\n");
+  assert.match(warn, /parent epic 1 is complete/);
+  assert.match(warn, /falsif/i);
+
+  // Case 2: child of a NON-complete parent epic → reopen succeeds, no warning.
+  await run([...CREATE, "--title", "Epic B"], io); // 3 (stays todo)
+  await run([...CREATE, "--title", "Child B", "--parent", "3"], io); // 4
+  await run(["start", "4"], io);
+  await run(["checkpoint", "4", "--status", "complete", "--summary", "child done", "--validation", "`npm test` → green"], io);
+
+  err.length = 0;
+  assert.equal(await run(["reopen", "4", "--reason", "another defect"], io), 0);
+  assert.equal(err.join("\n"), "", "no epic-falsification warning when the parent epic is not complete");
+});
+
 test("amend numbers amendments and protocol prints them", async () => {
   await run(["init"], io);
   assert.equal(await run(["amend", "--text", "Cite evidence in every ruling."], io), 0);
