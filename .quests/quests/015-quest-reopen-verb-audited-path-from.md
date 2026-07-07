@@ -45,7 +45,7 @@ npm test
 - [ ] M5 — docs: contract-spec.md, protocol.md, orchestrate SKILL.md, README
 
 ## Context
-Full design in approved plan /Users/robertsreberski/.claude/plans/please-evaluate-test-mario-project-quizzical-haven.md (Quest A section). Model reopenQuest on cancelQuest (store-local.mjs ~156, store-github.mjs ~363) and the cli cancel handler (~301). Evidence: ../test-mario retro — run otviq41n was a 0-iteration no-op on a complete quest, followed by an uncommitted hand-edit of the status line so run qdeadkg5 could fix review-found npm audit criticals; post-epic defects were fixed by manual commits 85a014e/4737c48 outside the loop.
+Design fixed at filing time (retro of the test-mario store). Model reopenQuest on cancelQuest (store-local.mjs ~156, store-github.mjs ~363) and the cli cancel handler (~301). Evidence: ../test-mario retro — run otviq41n was a 0-iteration no-op on a complete quest, followed by an uncommitted hand-edit of the status line so run qdeadkg5 could fix review-found npm audit criticals; post-epic defects were fixed by manual commits 85a014e/4737c48 outside the loop.
 
 ## Out of scope
 - ledger truthfulness changes (cost_usd null semantics, no_op marker, run_started metadata)

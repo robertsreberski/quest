@@ -40,7 +40,7 @@ npm test && npm run check:parity && npm run check:hygiene
 - [ ] M3 — skills guidance (orchestrate + plan), docs, CHANGELOG
 
 ## Context
-Full design in approved plan /Users/robertsreberski/.claude/plans/please-evaluate-test-mario-project-quizzical-haven.md (Quest B section and Design ruling). Anchors: readyQuests store-local.mjs ~85-91 (github twin promises parity in its comment), runReady runner.mjs ~543-551. Evidence: ../test-mario run ury9z3iz burned 649k tokens closing epic 1 with pure verification; epic 1 sat "ready" from creation because readiness only checks depends_on. Depends on quest 15 for the shared runner.mjs/spec surface.
+Design fixed at filing time (retro of the test-mario store); ruling: epics stay quests but are closed by the orchestrator, never dispatched. Anchors: readyQuests store-local.mjs ~85-91 (github twin promises parity in its comment), runReady runner.mjs ~543-551. Evidence: ../test-mario run ury9z3iz burned 649k tokens closing epic 1 with pure verification; epic 1 sat "ready" from creation because readiness only checks depends_on. Depends on quest 15 for the shared runner.mjs/spec surface.
 
 ## Out of scope
 - ledger event shape changes (no_op marker, run_started metadata) — candidate follow-up quest
