@@ -8,7 +8,7 @@ model: opus
 effort: xhigh
 max_iterations: 8
 created: 2026-07-07T21:06:46Z
-updated: 2026-07-07T21:08:17Z
+updated: 2026-07-07T21:13:05Z
 ---
 
 # quest reopen verb: audited path from complete back into the loop
@@ -52,3 +52,11 @@ Full design in approved plan /Users/robertsreberski/.claude/plans/please-evaluat
 - checkbox template changes and codex token_usage breakdown
 
 ## Checkpoints
+
+<!-- quest:checkpoint -->
+### 2026-07-07T21:13:05Z — quest_status: in_progress
+- iteration: 1
+- changed: M1: contract.mjs assertReopen(from) (only complete reopenable; cancelled stays terminal), optional reopen_reason field in makeCheckpoint, assertTransition complete-hint now points at quest reopen while keeping 'terminal'
+- validation_summary: `npm test` → 83 passed, 0 failed (was 80; +3 contract tests: assertReopen matrix, reopen_reason round-trip, terminal-hint points at reopen)
+
+TRANSITIONS.complete left as [] — assertReopen is a separate path used only by the reopen verb. Committed 7b56113.
