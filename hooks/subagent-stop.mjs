@@ -26,9 +26,9 @@
 // transcript's first timestamp): a checkpoint newer than start clears the stop; so
 // does a terminal store status (complete/blocked/cancelled) reached during the run.
 //
-// Conservative by construction: any missing/unreadable input or parse failure →
-// allow (exit 0), with a one-line stderr diagnostic. We never false-positive-block
-// unrelated subagents.
+// Conservative by construction: any missing input, unknown store/quest,
+// unreadable input, or parse failure → allow (exit 0). Expected allow paths stay
+// silent so unrelated or partially-shaped subagents do not surface hook noise.
 //
 // Block contract (Claude Code command hook): print {"decision":"block","reason"}
 // to stdout and exit 0. (Note: the {"ok":false,...} shape is for prompt/agent
@@ -214,7 +214,7 @@ try {
   try { payload = raw.trim() ? JSON.parse(raw) : {}; } catch { payload = {}; }
 
   const transcriptPath = payload.transcript_path;
-  if (typeof transcriptPath !== "string" || !transcriptPath) { diag("no transcript_path in payload; allowing"); allow(); }
+  if (typeof transcriptPath !== "string" || !transcriptPath) allow();
 
   let transcript;
   try { transcript = readFileSync(transcriptPath, "utf8"); }
@@ -226,17 +226,17 @@ try {
   // Prefer an explicit start field if a future payload carries one; else the
   // transcript's first timestamp.
   const start = toMs(payload.start_time) ?? toMs(payload.started_at) ?? firstTimestamp(transcript);
-  if (start == null) { diag(`quest ${id}: could not determine subagent start time; allowing`); allow(); }
+  if (start == null) allow();
 
   const cwd = typeof payload.cwd === "string" && payload.cwd ? payload.cwd : process.cwd();
   let storeDir;
   try { storeDir = findStoreDir(cwd, process.env); }
-  catch (err) { diag(`quest ${id}: ${err.message}; allowing`); allow(); }
-  if (!storeDir) { diag(`quest ${id}: no store found from ${cwd}; allowing`); allow(); }
+  catch { allow(); }
+  if (!storeDir) allow();
 
   let quest;
   try { quest = loadQuest(storeDir, id); }
-  catch (err) { diag(`quest ${id}: ${err.message}; allowing`); allow(); }
+  catch { allow(); }
 
   // A checkpoint recorded after the subagent started clears the stop.
   const latestCp = quest.checkpoints.reduce((max, cp) => {

@@ -246,6 +246,30 @@ test("SubagentStop: native agent payload without an explicit executor quest id i
   assert.equal(missingPrompt.stdout.trim(), "");
 });
 
+test("SubagentStop: missing transcript input is allowed silently", () => {
+  const res = fire(SUBAGENT_STOP, {
+    session_id: "s1",
+    cwd,
+    hook_event_name: "SubagentStop",
+    agent_id: "sub-1",
+    agent_type: "quest-executor",
+  });
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+});
+
+test("SubagentStop: unknown store is allowed silently", () => {
+  const bare = mkdtempSync(join(tmpdir(), "quest-no-store-"));
+  const res = fire(SUBAGENT_STOP, {
+    ...stopPayload(EXECUTOR_TRANSCRIPT),
+    cwd: bare,
+  });
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+});
+
 // (c) a subagent whose transcript has no marker is never touched.
 test("SubagentStop: an unrelated subagent is allowed silently", async () => {
   await seedQuest();
@@ -261,6 +285,7 @@ test("SubagentStop: marker for an unknown quest allows (no false block)", async 
   const res = fire(SUBAGENT_STOP, stopPayload(EXECUTOR_TRANSCRIPT));
   assert.equal(res.status, 0);
   assert.equal(res.stdout.trim(), "");
+  assert.equal(res.stderr, "");
 });
 
 // (d) SessionStart with no store anywhere upward → silent, exit 0.
