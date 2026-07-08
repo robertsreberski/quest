@@ -1,7 +1,7 @@
 ---
 id: 23
 title: Add native provider recommendations and work handoffs
-status: todo
+status: in_progress
 priority: p0
 worker: codex
 model: gpt-5.5
@@ -10,7 +10,7 @@ max_iterations: 5
 parent: 21
 depends_on: [22]
 created: 2026-07-08T21:20:18Z
-updated: 2026-07-08T21:20:18Z
+updated: 2026-07-08T21:30:37Z
 ---
 
 # Add native provider recommendations and work handoffs
