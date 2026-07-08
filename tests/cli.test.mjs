@@ -54,7 +54,7 @@ test("unknown command exits 2 with a hint", async () => {
 
 test("--version reports the package version", async () => {
   assert.equal(await run(["--version"], io), 0);
-  assert.equal(out[0], "0.3.3");
+  assert.equal(out[0], "0.3.4");
 });
 
 test("codex install-agents installs native project agents idempotently", async () => {
@@ -160,7 +160,38 @@ test("claude install-agents is atomic — a later conflict writes no earlier age
   assert.equal(readFileSync(reviewer, "utf8"), "name: custom-reviewer\n");
 });
 
-test("install-agents refuses symlinked agent targets even with --force", async () => {
+test("install-agents refuses symlinked project agent directories even with --force", async () => {
+  const cases = [
+    ["codex", ".codex", "toml"],
+    ["claude", ".claude", "md"],
+  ];
+
+  for (const [provider, projectDir, extension] of cases) {
+    const realAgentsDir = join(cwd, `${provider}-agents`);
+    const providerDir = join(cwd, projectDir);
+    const linkPath = join(providerDir, "agents");
+    mkdirSync(realAgentsDir, { recursive: true });
+    mkdirSync(providerDir, { recursive: true });
+    symlinkSync(`../${provider}-agents`, linkPath, "dir");
+
+    out.length = 0;
+    err.length = 0;
+    assert.equal(await run([provider, "install-agents", "--scope", "project", "--dry-run", "--json"], io), 0);
+    let result = JSON.parse(out[0]);
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.conflicts, [{ name: null, path: linkPath, reason: "symlink-directory" }]);
+    assert.ok(result.actions.every((a) => a.action === "create"));
+    assert.equal(existsSync(join(realAgentsDir, `quest-executor.${extension}`)), false);
+
+    out.length = 0;
+    err.length = 0;
+    assert.equal(await run([provider, "install-agents", "--scope", "project", "--force", "--json"], io), 2);
+    assert.match(err.join("\n"), /symlinked directory/);
+    assert.equal(existsSync(join(realAgentsDir, `quest-executor.${extension}`)), false);
+  }
+});
+
+test("install-agents writes through symlinked agent files with --force", async () => {
   const agentsDir = join(cwd, ".claude", "agents");
   const reviewer = join(agentsDir, "quest-reviewer.md");
   const executor = join(agentsDir, "quest-executor.md");
@@ -169,10 +200,18 @@ test("install-agents refuses symlinked agent targets even with --force", async (
   writeFileSync(victim, "do not overwrite\n");
   symlinkSync(victim, reviewer);
 
-  assert.equal(await run(["claude", "install-agents", "--scope", "project", "--force"], io), 2);
-  assert.match(err.join("\n"), /agent file already exists|symlink/);
+  assert.equal(await run(["claude", "install-agents", "--scope", "project"], io), 2);
+  assert.match(err.join("\n"), /--force/);
   assert.equal(readFileSync(victim, "utf8"), "do not overwrite\n");
   assert.equal(existsSync(executor), false, "executor must not be partially installed");
+
+  out.length = 0;
+  err.length = 0;
+  assert.equal(await run(["claude", "install-agents", "--scope", "project", "--force", "--json"], io), 0);
+  const result = JSON.parse(out[0]);
+  assert.equal(result.ok, true);
+  assert.match(readFileSync(victim, "utf8"), /name: quest-reviewer/);
+  assert.ok(existsSync(executor));
 });
 
 test("codex doctor verifies CLI/plugin/hooks/skills/agents from native surfaces", async () => {
@@ -219,7 +258,7 @@ test("claude doctor fails when installed plugin is stale", async () => {
   const result = JSON.parse(out[0]);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["plugin-version"].ok, false);
-  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.3/);
+  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.4/);
   assert.match(byName["plugin-version"].detail, /claude plugin update quest@quest/);
 });
 
@@ -232,8 +271,8 @@ test("codex doctor fails when quest on PATH is stale", async () => {
   const result = JSON.parse(out[0]);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["quest-cli-path"].ok, false);
-  assert.match(byName["quest-cli-path"].detail, /quest on PATH=0\.3\.0, package=0\.3\.3/);
-  assert.match(byName["quest-cli-path"].detail, /npm install -g quest-loop@0\.3\.3/);
+  assert.match(byName["quest-cli-path"].detail, /quest on PATH=0\.3\.0, package=0\.3\.4/);
+  assert.match(byName["quest-cli-path"].detail, /npm install -g quest-loop@0\.3\.4/);
 });
 
 test("codex doctor fails with upgrade hint when installed plugin is stale", async () => {
@@ -244,7 +283,7 @@ test("codex doctor fails with upgrade hint when installed plugin is stale", asyn
   const result = JSON.parse(out[0]);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["plugin-version"].ok, false);
-  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.3/);
+  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.4/);
   assert.match(byName["plugin-version"].detail, /codex plugin marketplace upgrade quest/);
 });
 

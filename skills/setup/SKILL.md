@@ -71,7 +71,8 @@ quest claude install-agents --scope user
 
 If an existing file conflicts, inspect it first. Use `--force` only when you
 intend to replace that custom agent with Quest's bundled definition. Symlinked
-agent directories or files are refused rather than overwritten.
+agent template files can be written through with `--force`; keep the provider
+agent directories themselves as real directories.
 
 ## Update Installed Plugin
 

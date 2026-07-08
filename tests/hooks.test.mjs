@@ -13,6 +13,7 @@ import { run } from "../lib/cli.mjs";
 
 const SESSION_START = new URL("../hooks/session-start.mjs", import.meta.url).pathname;
 const SUBAGENT_STOP = new URL("../hooks/subagent-stop.mjs", import.meta.url).pathname;
+const PLAN_EXIT_REMINDER = new URL("../hooks/plan-exit-reminder.mjs", import.meta.url).pathname;
 const EXECUTOR_TRANSCRIPT = new URL("./fixtures/executor-transcript.jsonl", import.meta.url).pathname;
 const UNRELATED_TRANSCRIPT = new URL("./fixtures/unrelated-transcript.jsonl", import.meta.url).pathname;
 const SKILL_PROSE_TRANSCRIPT = new URL("./fixtures/skill-prose-transcript.jsonl", import.meta.url).pathname;
@@ -55,6 +56,14 @@ const stopPayload = (transcript) => ({
   agent_id: "sub-1",
   agent_type: "general-purpose",
 });
+
+const QUEST_PLAN_HANDOFF = [
+  "<proposed_plan>",
+  "Use $quest:plan to create quest records.",
+  "Run `quest create` and `quest lint`, then continue with $quest:orchestrate.",
+  "This is an orchestration handoff, not direct implementation.",
+  "</proposed_plan>",
+].join("\n");
 
 // (a) executor transcript + a checkpoint newer than the subagent start → allow.
 test("SubagentStop: executor with a fresh checkpoint is allowed to stop", async () => {
@@ -235,4 +244,52 @@ test("SessionStart: seeded store injects counts and the in-flight quest", async 
   assert.match(res.stdout, /in_progress/);
   assert.match(res.stdout, /Ship the widget/);
   assert.match(res.stdout, /quest list --ready/);
+});
+
+test("PlanExitReminder: ExitPlanMode Quest handoff emits orchestration reminder", () => {
+  const res = fire(PLAN_EXIT_REMINDER, {
+    session_id: "s1",
+    cwd,
+    hook_event_name: "PostToolUse",
+    tool_name: "ExitPlanMode",
+    tool_input: { plan: QUEST_PLAN_HANDOFF },
+  });
+  assert.equal(res.status, 0);
+  const output = JSON.parse(res.stdout.trim());
+  assert.match(output.systemMessage, /\$quest:orchestrate/);
+  assert.match(output.systemMessage, /orchestration, not direct implementation/);
+});
+
+test("PlanExitReminder: Stop fallback uses final Quest plan handoff only", () => {
+  const res = fire(PLAN_EXIT_REMINDER, {
+    session_id: "s1",
+    cwd,
+    hook_event_name: "Stop",
+    last_assistant_message: QUEST_PLAN_HANDOFF,
+  });
+  assert.equal(res.status, 0);
+  const output = JSON.parse(res.stdout.trim());
+  assert.match(output.systemMessage, /quest records/);
+  assert.match(output.systemMessage, /\$quest:orchestrate/);
+});
+
+test("PlanExitReminder: non-Quest plan exits and ordinary stops are silent", () => {
+  const nonQuest = fire(PLAN_EXIT_REMINDER, {
+    session_id: "s1",
+    cwd,
+    hook_event_name: "PostToolUse",
+    tool_name: "ExitPlanMode",
+    tool_input: { plan: "Add a dark-mode toggle and then implement it." },
+  });
+  assert.equal(nonQuest.status, 0);
+  assert.equal(nonQuest.stdout, "");
+
+  const ordinaryStop = fire(PLAN_EXIT_REMINDER, {
+    session_id: "s1",
+    cwd,
+    hook_event_name: "Stop",
+    last_assistant_message: "Done. Tests pass.",
+  });
+  assert.equal(ordinaryStop.status, 0);
+  assert.equal(ordinaryStop.stdout, "");
 });

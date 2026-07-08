@@ -78,7 +78,7 @@ function runWithoutScenario(args) {
   }
 
   if (args.join(" ") === "plugin list --json") {
-    const pluginVersion = process.env.QUEST_SHIM_CLAUDE_PLUGIN_VERSION || "0.3.3";
+    const pluginVersion = process.env.QUEST_SHIM_CLAUDE_PLUGIN_VERSION || "0.3.4";
     process.stdout.write(JSON.stringify([
       {
         id: "quest@quest",

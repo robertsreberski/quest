@@ -1,7 +1,7 @@
 {
   "name": "quest",
   "description": "Goal-loop engineering for coding agents: plan work as evidence-checkable quest contracts, execute them in iterative loops with checkpoints, orchestrate Claude and Codex workers, and mine retros into protocol amendments.",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "author": { "name": "Robert Sreberski" },
   "homepage": "https://github.com/robertsreberski/quest",
   "repository": "https://github.com/robertsreberski/quest",

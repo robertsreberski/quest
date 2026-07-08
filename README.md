@@ -151,6 +151,10 @@ existing project agent template would be replaced, init fails before creating
 command with `--force` only if you intend to replace them, then rerun
 `quest init`.
 
+Agent template files may be symlinks; when you use `--force`, the install writes
+through those file symlinks. Keep `.codex/agents` and `.claude/agents` as real
+directories rather than symlinking the whole directory.
+
 Project-scoped agent templates install at the Git repository root. For a nested
 quest store, run `quest init --no-agents` in the nested directory and set
 `QUEST_DIR` for agents launched from elsewhere, or initialize from the repo root.

@@ -62,6 +62,33 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "root=\"${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; [ -n \"$root\" ] && node \"$root/hooks/plan-exit-reminder.mjs\"",
+            "commandWindows": "if defined CODEX_PLUGIN_ROOT (node \"%CODEX_PLUGIN_ROOT%\\hooks\\plan-exit-reminder.mjs\") else if defined CLAUDE_PLUGIN_ROOT (node \"%CLAUDE_PLUGIN_ROOT%\\hooks\\plan-exit-reminder.mjs\")",
+            "timeout": 10,
+            "statusMessage": "Preparing quest orchestration reminder"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "root=\"${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; [ -n \"$root\" ] && node \"$root/hooks/plan-exit-reminder.mjs\"",
+            "commandWindows": "if defined CODEX_PLUGIN_ROOT (node \"%CODEX_PLUGIN_ROOT%\\hooks\\plan-exit-reminder.mjs\") else if defined CLAUDE_PLUGIN_ROOT (node \"%CLAUDE_PLUGIN_ROOT%\\hooks\\plan-exit-reminder.mjs\")",
+            "timeout": 10,
+            "statusMessage": "Checking quest plan handoff"
+          }
+        ]
+      }
     ]
   }
 }

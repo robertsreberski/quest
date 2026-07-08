@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## [0.3.4] — 2026-07-08
+
+### Changed
+- `quest codex install-agents` and `quest claude install-agents` now allow
+  `--force` to write through symlinked agent template files, while continuing to
+  refuse symlinked provider agent directories.
+
+### Added
+- Added a Quest plan-exit reminder hook that nudges accepted `$quest:plan`
+  handoffs toward `$quest:orchestrate` rather than direct implementation.
+
 ## [0.3.3] — 2026-07-08
 
 ### Changed
