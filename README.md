@@ -81,9 +81,9 @@ quest codex doctor
 codex debug prompt-input "noop"
 ```
 
-`quest codex doctor` checks the installed plugin version, hook parser, neutral
-skill roots, and native Codex custom agents. `codex debug prompt-input "noop"`
-should not print any hook parse warnings.
+`quest codex doctor` checks the installed plugin version, Codex `multi_agent`
+support, hook parser, neutral skill roots, and installed native-agent templates.
+`codex debug prompt-input "noop"` should not print any hook parse warnings.
 
 #### Updating the Codex plugin
 
@@ -143,6 +143,27 @@ form.
 ```bash
 quest-run 12
 ```
+
+For planned or multi-quest work, prefer orchestration:
+
+```
+$quest:orchestrate
+```
+
+In Codex, the orchestrator sets a wave-level `create_goal`, then spawns native
+`quest-executor` / `quest-reviewer` subagents with their own quest-level goals.
+In Claude Code, the same flow uses `/goal` and the same bundled subagents. If a
+Codex native subagent surface is unavailable, use the headless fallback with
+goal mode required:
+
+```bash
+quest-run 12 --worker codex --codex-goal-mode require
+```
+
+When a `$quest:plan` result is accepted from Plan Mode, the parent agent should
+stay the orchestrator: create/lint quest records if needed, set the wave goal,
+spawn subagents, verify checkpoints, and rule on reviewer findings. Product
+implementation belongs to the spawned executor for each quest.
 
 Each iteration ends by recording evidence — a checkpoint a fresh session can
 resume from:

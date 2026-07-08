@@ -22,6 +22,21 @@ extra context.
 | Medium | 1 quest, dispatch an executor | needs iterations, fits one Objective |
 | Large | epic parent + child quests in waves | multiple objectives; order via `depends_on` |
 
+## Plan Mode handoff
+
+In Codex Plan Mode, do **not** implement product code after the user accepts a
+plan. Your role is to make the quest records real, then ask before orchestration:
+
+1. Create or confirm the quest records with `quest create` and `quest lint`.
+2. Ask the user directly whether to enter `$quest:orchestrate` and dispatch the
+   ready quests now. Do not silently switch modes.
+3. If the user says yes, switch to `$quest:orchestrate`, set the orchestrator
+   goal for the wave, then spawn goal-mode workers. If not, stop after listing
+   the ready quest ids and validation commands.
+
+The parent session owns dispatch, checkpoint verification, reviewer rulings, and
+epic closure. The spawned executor owns implementation for exactly one quest.
+
 For epics: create the parent first, then children with `--parent <id>` and
 `--depends-on` expressing the real order. `quest list --ready` becomes the
 dispatch queue — that is the whole wave mechanic.
@@ -51,8 +66,12 @@ Every field earns its place:
 - **Context**: files + symbols (`resolveConfig` in `lib/config.mjs`), related
   quests. NEVER bare line numbers — they rot.
 - **Out of scope**: the adjacent work you are explicitly not doing.
-- `--worker` / `--model` / `--effort` / `--max-iterations`: match the tier to
-  the difficulty; the defaults come from `.quests/config.json`.
+- `--worker`, `--model`, and `--effort`: always specify all three explicitly in
+  every `quest create` command you author. Pick them deliberately from the task's
+  risk, ambiguity, context size, and validation cost so the worker starts with
+  an intentional execution profile instead of inheriting blindly from defaults.
+- `--max-iterations`: match the loop budget to the difficulty; defaults in
+  `.quests/config.json` are fallback behavior, not a planning substitute.
 
 **Anti-patterns** (lint catches some, you catch the rest): adjective done-whens
 ("fast", "clean"); validation loops that are prose, not commands; objectives
@@ -61,7 +80,8 @@ hiding three objectives; context by line number; budgets so big they never bind.
 ## Worked example
 
 ```bash
-quest create --title "Add dark mode to settings" \
+quest create --worker codex --model gpt-5.5 --effort medium --max-iterations 4 \
+  --title "Add dark mode to settings" \
   --objective "The settings page offers a dark theme that persists across reloads." \
   --done-when "toggling theme switches the UI and survives reload" \
   --done-when "\`npm test\` passes including new theme tests" \
@@ -74,5 +94,6 @@ quest create --title "Add dark mode to settings" \
 quest lint 12   # always, before dispatch
 ```
 
-**Next:** dispatch with `$quest:orchestrate` (or work it yourself via
-`$quest:work <id>`). Rules and vocabulary: `$quest:protocol`.
+**Next:** dispatch with `$quest:orchestrate`. Only work it yourself via
+`$quest:work <id>` for genuinely small inline work outside Plan Mode. Rules and
+vocabulary: `$quest:protocol`.

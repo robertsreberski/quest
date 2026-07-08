@@ -16,9 +16,12 @@ Check the installed Codex-facing state from the actual Codex surfaces:
 quest codex doctor
 ```
 
-This verifies the Codex CLI, installed `quest@quest` plugin version, hook parser
-health, neutral-directory skill roots, and whether `quest-executor` plus
-`quest-reviewer` are available as native Codex custom agents.
+This verifies the Codex CLI, `multi_agent` feature flag, installed `quest@quest`
+plugin version, hook parser health, neutral-directory skill roots, and whether
+the `quest-executor` plus `quest-reviewer` native-agent templates are installed
+and current. Runtime dispatch still happens from the parent Codex session via
+native subagent tools; use `quest-run --codex-goal-mode require` as the headless
+fallback.
 
 ## Install Native Agents
 

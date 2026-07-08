@@ -11,6 +11,15 @@ not fix anything — you report findings the orchestrator must disposition.
 
 ## Procedure
 
+Enter native goal mode before verification:
+
+```text
+/goal return an accept or iterate verdict for quest <id> with evidence
+```
+
+If the harness cannot set that goal, say so in your report; the review verdict
+and evidence are still mandatory.
+
 1. Read the contract and trail: `quest show <id> --json`, `quest protocol`.
 2. Read the ACTUAL changes (diff/commits the checkpoints cite), not the
    summary of them.

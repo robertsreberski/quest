@@ -19,14 +19,23 @@ if (!scenarioPath) {
   if (argv.join(" ") === "plugin list --json") {
     process.stdout.write(JSON.stringify({
       installed: [
-        { pluginId: "quest@quest", name: "quest", marketplaceName: "quest", version: "0.3.0", installed: true, enabled: true },
+        { pluginId: "quest@quest", name: "quest", marketplaceName: "quest", version: "0.3.1", installed: true, enabled: true },
       ],
       available: [],
     }) + "\n");
     process.exit(0);
   }
+  if (argv.join(" ") === "features list") {
+    const multiAgent = process.env.QUEST_SHIM_MULTI_AGENT ?? "true";
+    const goals = process.env.QUEST_SHIM_GOALS ?? "true";
+    process.stdout.write([
+      `multi_agent                          stable             ${multiAgent}`,
+      `goals                                stable             ${goals}`,
+    ].join("\n") + "\n");
+    process.exit(0);
+  }
   if (argv.join(" ") === "debug prompt-input noop") {
-    const root = "/tmp/codex-plugin-cache/quest/quest/0.3.0";
+    const root = "/tmp/codex-plugin-cache/quest/quest/0.3.1";
     process.stdout.write(JSON.stringify([
       {
         type: "message",

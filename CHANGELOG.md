@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## Unreleased
+
+## [0.3.1] — 2026-07-08
+
+### Changed
+- `$quest:orchestrate` now documents Codex/Claude native subagent parity:
+  orchestrator-level goals, goal-mode executor/reviewer dispatch prompts, and
+  `quest-run --codex-goal-mode require` as the Codex headless fallback.
+- `$quest:plan` now makes the accepted Plan Mode handoff explicit: the parent
+  session becomes the orchestrator and spawned quest executors implement the
+  code.
+- `$quest:plan` now requires generated `quest create` commands to specify
+  `--worker`, `--model`, and `--effort` explicitly, and asks the user before
+  entering `$quest:orchestrate`.
+- `quest codex doctor` now checks Codex `multi_agent` feature availability and
+  describes native-agent checks as installed template parity.
+- Wave-level orchestrator goals now treat `cancelled` quests as terminal
+  alongside `complete` and `blocked` store statuses.
+
+### Fixed
+- `quest codex doctor` now checks Codex `goals` feature availability, so a
+  setup with `multi_agent=true` but goal tools disabled fails readiness instead
+  of green-lighting native goal-mode dispatch.
+
 ## [0.3.0] — 2026-07-08
 
 ### Added

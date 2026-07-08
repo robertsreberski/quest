@@ -12,6 +12,16 @@ only insofar as it is recorded in the quest's checkpoint trail.
 
 ## First actions, always
 
+Enter native goal mode before doing implementation work:
+
+```text
+/goal quest <id> has a new checkpoint whose quest_status is complete or blocked
+in `quest show <id> --json`
+```
+
+If the harness cannot set that goal, say so in your final report; the
+checkpoint trail is still mandatory.
+
 ```bash
 quest show <id> --json    # the contract and every prior checkpoint
 quest protocol            # the loop rules + this store's amendments

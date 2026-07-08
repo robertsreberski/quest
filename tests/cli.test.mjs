@@ -46,7 +46,7 @@ test("unknown command exits 2 with a hint", async () => {
 
 test("--version reports the package version", async () => {
   assert.equal(await run(["--version"], io), 0);
-  assert.equal(out[0], "0.3.0");
+  assert.equal(out[0], "0.3.1");
 });
 
 test("codex install-agents installs native project agents idempotently", async () => {
@@ -118,8 +118,38 @@ test("codex doctor verifies CLI/plugin/hooks/skills/agents from native surfaces"
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["version-sync"].ok, true);
   assert.equal(byName["plugin-installed"].ok, true);
+  assert.equal(byName["multi-agent-feature"].ok, true);
+  assert.match(byName["multi-agent-feature"].detail, /native Codex quest-executor dispatch available/);
+  assert.equal(byName["goals-feature"].ok, true);
+  assert.match(byName["goals-feature"].detail, /create_goal\/get_goal/);
   assert.equal(byName["single-neutral-skill-root"].ok, true);
   assert.equal(byName["native-agents"].ok, true);
+});
+
+test("codex doctor reports quest-run fallback when Codex multi_agent is disabled", async () => {
+  assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 0);
+  out.length = 0;
+  const codexIo = { ...io, env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}`, QUEST_SHIM_MULTI_AGENT: "false" } };
+  assert.equal(await run(["codex", "doctor", "--json"], codexIo), 1);
+  const result = JSON.parse(out[0]);
+  assert.equal(result.ok, false);
+  const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
+  assert.equal(byName["multi-agent-feature"].ok, false);
+  assert.match(byName["multi-agent-feature"].detail, /use quest-run fallback/);
+  assert.equal(byName["goals-feature"].ok, true);
+});
+
+test("codex doctor fails when Codex goals are disabled even if multi_agent is enabled", async () => {
+  assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 0);
+  out.length = 0;
+  const codexIo = { ...io, env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}`, QUEST_SHIM_GOALS: "false" } };
+  assert.equal(await run(["codex", "doctor", "--json"], codexIo), 1);
+  const result = JSON.parse(out[0]);
+  assert.equal(result.ok, false);
+  const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
+  assert.equal(byName["multi-agent-feature"].ok, true);
+  assert.equal(byName["goals-feature"].ok, false);
+  assert.match(byName["goals-feature"].detail, /requires create_goal\/get_goal/);
 });
 
 test("commands without a store exit 3 with init hint", async () => {
