@@ -1,7 +1,7 @@
 ---
 id: 25
 title: Tighten native hooks and session status cards
-status: todo
+status: in_progress
 priority: p1
 worker: codex
 model: gpt-5.5
@@ -9,7 +9,7 @@ effort: high
 max_iterations: 4
 parent: 21
 created: 2026-07-08T21:20:35Z
-updated: 2026-07-08T21:20:35Z
+updated: 2026-07-08T21:27:50Z
 ---
 
 # Tighten native hooks and session status cards
@@ -44,3 +44,9 @@ Loop findings: native provider loops 4 and 5, plus CLI loop 1. Files and symbols
 - changing provider hook schemas beyond observed payload fields
 
 ## Checkpoints
+
+<!-- quest:checkpoint -->
+### 2026-07-08T21:27:50Z — quest_status: in_progress
+- iteration: 1
+- changed: M1 — SubagentStop detects native quest-executor launch prompts with explicit quest ids before mutating commands while preserving silent allows for non-executor or missing-prompt payloads
+- validation_summary: `npm test` → 145 passed, 0 failed
