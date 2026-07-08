@@ -101,7 +101,7 @@ Captured here headlessly with `-p` so the result is machine-readable:
 ```bash
 cd "$DEMO"
 claude --plugin-dir "$PLUGIN_DIR" \
-  -p "Orchestrate the ready quests per $quest:orchestrate. Dispatch the quest-executor subagent per the record (its model field says haiku). Verify the checkpoint before accepting." \
+  -p "Orchestrate the ready quests per \$quest:orchestrate. Dispatch the quest-executor subagent per the record (its model field says haiku). Verify the checkpoint before accepting." \
   --model sonnet \
   --permission-mode acceptEdits \
   --allowedTools "Bash,Read,Edit,Write,Glob,Grep,Agent,Skill" \
@@ -222,7 +222,7 @@ output of `quest show 1 --json` shown in this conversation contains a NEW
 checkpoint (timestamp after 2026-07-07T14:32:54Z) with quest_status complete or
 blocked. If you created a goal, verify with get_goal. Only call
 update_goal(status=\"complete\") AFTER `quest checkpoint` succeeded. Work quest
-1 per the $quest:work skill. …" --json -m gpt-5.5 -C /tmp/quest-demo-codex
+1 per the \$quest:work skill. …" --json -m gpt-5.5 -C /tmp/quest-demo-codex
 --sandbox workspace-write --skip-git-repo-check -o $TMPDIR/quest-run-codex-<uuid>.json
 --output-schema $PLUGIN_DIR/schemas/final-report.schema.json -c model_reasoning_effort=medium
 ```

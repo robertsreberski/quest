@@ -88,5 +88,12 @@ fresh session can resume from.
    git push origin main --tags
    ```
 
-quest is distributed as a plugin and an npm CLI package. Publish the package
-only when the CLI surface changed; the tag updates plugin marketplace installs.
+5. Publish the npm package **only when the CLI surface changed** (`quest` /
+   `quest-run` behavior or flags):
+
+   ```bash
+   npm publish
+   ```
+
+quest is distributed as a plugin and an npm CLI package. The tag updates plugin
+marketplace installs; `npm publish` (step 5) updates `npm install -g quest-loop`.

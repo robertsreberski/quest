@@ -22,6 +22,7 @@ const CHECKPOINT_FIRST_TRANSCRIPT = new URL("./fixtures/checkpoint-first-transcr
 const CODEX_COMMAND_TRANSCRIPT = new URL("./fixtures/codex-command-execution-transcript.jsonl", import.meta.url).pathname;
 const CODEX_GREP_TRANSCRIPT = new URL("./fixtures/codex-grep-false-positive-transcript.jsonl", import.meta.url).pathname;
 const CODEX_MSG_WRAPPED_TRANSCRIPT = new URL("./fixtures/codex-msg-wrapped-transcript.jsonl", import.meta.url).pathname;
+const CODEX_QUOTED_SEP_TRANSCRIPT = new URL("./fixtures/codex-quoted-separator-transcript.jsonl", import.meta.url).pathname;
 
 // Clean env: strip QUEST_DIR/QUEST_BACKEND so store discovery is driven purely by
 // the payload cwd, matching how the hook runs inside a real session.
@@ -192,6 +193,13 @@ test("SubagentStop: a command merely quoting the marker (grep) does not key dete
   const res = fire(SUBAGENT_STOP, stopPayload(CODEX_GREP_TRANSCRIPT));
   assert.equal(res.status, 0);
   assert.equal(res.stdout.trim(), "", "grep of `quest checkpoint 1` is not a real invocation → allowed silently");
+});
+
+test("SubagentStop: a separator inside quotes does not forge a command head", async () => {
+  await seedQuest(); // quest 1, in_progress, zero checkpoints — would block if detected
+  const res = fire(SUBAGENT_STOP, stopPayload(CODEX_QUOTED_SEP_TRANSCRIPT));
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout.trim(), "", "`echo 'done; quest checkpoint 1'` is not a quest invocation → allowed silently");
 });
 
 // (c) a subagent whose transcript has no marker is never touched.

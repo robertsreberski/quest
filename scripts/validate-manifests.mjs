@@ -78,15 +78,22 @@ if (hookConfig != null) {
   ) {
     errors.push(`${HOOKS}: required field "hooks" must be an object`);
   } else {
-    const sessionMatchers = new Set((hookConfig.hooks.SessionStart || []).map((g) => g.matcher));
+    // Guard every dereference: a malformed manifest is exactly what this
+    // validator must REPORT, not crash on.
+    const sessionStartGroups = hookConfig.hooks.SessionStart;
+    if (sessionStartGroups != null && !Array.isArray(sessionStartGroups)) {
+      errors.push(`${HOOKS}: "hooks.SessionStart" must be an array`);
+    }
+    const sessionMatchers = new Set((Array.isArray(sessionStartGroups) ? sessionStartGroups : []).map((g) => g?.matcher));
     for (const matcher of ["startup", "resume", "clear", "compact"]) {
       if (!sessionMatchers.has(matcher)) errors.push(`${HOOKS}: SessionStart missing matcher "${matcher}"`);
     }
     for (const [event, groups] of Object.entries(hookConfig.hooks)) {
       if (!Array.isArray(groups)) continue;
       for (const [groupIndex, group] of groups.entries()) {
-        for (const [hookIndex, hook] of (group.hooks || []).entries()) {
-          if (hook.type !== "command") continue;
+        const hooks = Array.isArray(group?.hooks) ? group.hooks : [];
+        for (const [hookIndex, hook] of hooks.entries()) {
+          if (hook == null || typeof hook !== "object" || hook.type !== "command") continue;
           const where = `${event}[${groupIndex}].hooks[${hookIndex}]`;
           const command = String(hook.command || "");
           if (!command.includes("CODEX_PLUGIN_ROOT") || !command.includes("CLAUDE_PLUGIN_ROOT")) {

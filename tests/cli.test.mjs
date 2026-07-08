@@ -2,7 +2,7 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, delimiter } from "node:path";
 import { run } from "../lib/cli.mjs";
 
 const SNAP = new URL("./snapshots/", import.meta.url).pathname;
@@ -111,7 +111,7 @@ test("codex install-agents is atomic — a later conflict writes no earlier agen
 test("codex doctor verifies CLI/plugin/hooks/skills/agents from native surfaces", async () => {
   assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 0);
   out.length = 0;
-  const codexIo = { ...io, env: { PATH: `${SHIMS}:${process.env.PATH}` } };
+  const codexIo = { ...io, env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}` } };
   assert.equal(await run(["codex", "doctor", "--json"], codexIo), 0);
   const result = JSON.parse(out[0]);
   assert.equal(result.ok, true);

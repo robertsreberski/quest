@@ -340,7 +340,7 @@ test("early-exit on an already-complete quest suggests quest reopen and spawns n
   const ended = runsEvents().find((e) => e.event === "run_ended");
   assert.equal(ended.final_status, "complete");
   assert.equal(ended.iterations, 0);
-  assert.ok(out.join("\n").length >= 0);
+  assert.match(out.join("\n"), /ended complete after 0 session/);
 });
 
 test("--dry-run prints the invocation and spawns nothing", async () => {

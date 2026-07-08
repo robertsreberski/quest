@@ -42,7 +42,32 @@ import { loadQuest } from "../lib/store-local.mjs";
 // Read verbs (show/list/protocol/runs) are deliberately absent.
 const MARKER = /^(?:node\s+)?(?:[.\w/@-]*\/)?quest\s+(start|checkpoint)\s+(\d+)/;
 
-// Strip a leading shell wrapper (`bash -lc '…'`, `sh -c "…"`) and split a command
+// Split a shell command into top-level segments on `&&`, `||`, `;`, `|`, and
+// newline, IGNORING any separator that sits inside single or double quotes. This
+// keeps quoted text (grep patterns, commit messages) from forging a command head.
+// (Heredoc bodies on their own line remain a rare residual; a false "checkpoint"
+// nudge is benign, and heredoc parsing is not worth the complexity in a hook.)
+function splitTopLevel(s) {
+  const segs = [];
+  let buf = "";
+  let quote = null;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (quote) {
+      if (c === quote) quote = null;
+      buf += c;
+      continue;
+    }
+    if (c === "'" || c === '"') { quote = c; buf += c; continue; }
+    if ((c === "&" && s[i + 1] === "&") || (c === "|" && s[i + 1] === "|")) { segs.push(buf); buf = ""; i++; continue; }
+    if (c === ";" || c === "|" || c === "\n") { segs.push(buf); buf = ""; continue; }
+    buf += c;
+  }
+  segs.push(buf);
+  return segs;
+}
+
+// Strip a leading shell wrapper (`bash -lc '…'`, `sh -c "…"`) and split the command
 // chain, then look for a quest invocation at the head of any segment. Returns the
 // marker id or null.
 function markerIdInCommand(cmd) {
@@ -50,7 +75,7 @@ function markerIdInCommand(cmd) {
   let s = cmd.trim();
   const wrap = s.match(/^(?:sudo\s+)?(?:ba)?sh\s+-l?c\s+(['"])([\s\S]*)\1\s*$/);
   if (wrap) s = wrap[2].trim();
-  for (const seg of s.split(/&&|\|\||;|\n|\|/)) {
+  for (const seg of splitTopLevel(s)) {
     const m = MARKER.exec(seg.trim());
     if (m) return Number(m[2]); // m[1] = verb, m[2] = id
   }
