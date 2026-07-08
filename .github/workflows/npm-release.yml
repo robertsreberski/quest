@@ -1,0 +1,113 @@
+name: npm release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish npm package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Validate release tag
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          PACKAGE_VERSION="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version)")"
+          if [ "$VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $PACKAGE_VERSION" >&2
+            exit 1
+          fi
+          if ! grep -Fq "## [$VERSION]" CHANGELOG.md; then
+            echo "CHANGELOG.md is missing a ## [$VERSION] release heading" >&2
+            exit 1
+          fi
+
+      # Zero-dependency project: no install step, no lockfile.
+      - name: Tests
+        run: npm test
+
+      - name: Hygiene
+        run: npm run check:hygiene
+
+      - name: Validate plugin manifests
+        run: npm run check:manifests
+
+      - name: Agent / skill parity
+        run: npm run check:parity
+
+      - name: Validate package contents
+        run: npm pack --dry-run
+
+      - name: Check whitespace
+        run: git diff --check
+
+      - name: Ensure version is not already published
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          if npm view "quest-loop@$VERSION" version >/dev/null 2>&1; then
+            echo "quest-loop@$VERSION is already published" >&2
+            exit 1
+          fi
+
+      - name: Publish npm package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+      - name: Verify public npm metadata
+        env:
+          NPM_CONFIG_USERCONFIG: /dev/null
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          retry() {
+            for _ in $(seq 1 30); do
+              "$@" && return 0
+              sleep 5
+            done
+            "$@"
+          }
+          verify_metadata() {
+            test "$(npm view "quest-loop@$VERSION" version)" = "$VERSION"
+          }
+          retry verify_metadata
+
+      - name: Smoke test published CLIs
+        env:
+          NPM_CONFIG_USERCONFIG: /dev/null
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          retry() {
+            for _ in $(seq 1 30); do
+              "$@" && return 0
+              sleep 5
+            done
+            "$@"
+          }
+          TMP_PREFIX="$(mktemp -d)"
+          retry npm install -g --prefix "$TMP_PREFIX" --prefer-online "quest-loop@$VERSION"
+          test "$("$TMP_PREFIX/bin/quest" --version)" = "$VERSION"
+          "$TMP_PREFIX/bin/quest-run" --help >/dev/null

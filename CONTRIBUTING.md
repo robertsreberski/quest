@@ -79,8 +79,8 @@ fresh session can resume from.
    - `package.json`
 2. Add a `CHANGELOG.md` entry under a new version heading (move items out of
    `## [Unreleased]`).
-3. Verify green: `npm test && node scripts/check-hygiene.mjs && npm run
-   check:manifests && npm run check:parity`.
+3. Verify green: `npm test && npm run check:hygiene && npm run
+   check:manifests && npm run check:parity && npm pack --dry-run`.
 4. Commit, then tag and push:
 
    ```bash
@@ -88,12 +88,12 @@ fresh session can resume from.
    git push origin main --tags
    ```
 
-5. Publish the npm package **only when the CLI surface changed** (`quest` /
-   `quest-run` behavior or flags):
-
-   ```bash
-   npm publish
-   ```
+5. The `npm release` GitHub Action publishes `quest-loop` from `v*` tags when
+   `NPM_TOKEN` is configured in the repository secrets. It validates the tag,
+   runs the same local gates, runs `npm pack --dry-run`, publishes with npm
+   provenance, verifies public npm metadata, and smoke-tests `quest` plus
+   `quest-run` from a fresh global install.
 
 quest is distributed as a plugin and an npm CLI package. The tag updates plugin
-marketplace installs; `npm publish` (step 5) updates `npm install -g quest-loop`.
+marketplace installs and triggers the npm workflow that updates
+`npm install -g quest-loop`.
