@@ -1,7 +1,7 @@
 ---
 id: 23
 title: Add native provider recommendations and work handoffs
-status: in_progress
+status: complete
 priority: p0
 worker: codex
 model: gpt-5.5
@@ -10,7 +10,7 @@ max_iterations: 5
 parent: 21
 depends_on: [22]
 created: 2026-07-08T21:20:18Z
-updated: 2026-07-08T21:30:37Z
+updated: 2026-07-08T21:34:20Z
 ---
 
 # Add native provider recommendations and work handoffs
@@ -46,3 +46,12 @@ Loop findings: native provider loops 1 and 3. Files and symbols: runNativeSetupC
 - launching real provider sessions from work handoff without an explicit non-dry-run design
 
 ## Checkpoints
+
+<!-- quest:checkpoint -->
+### 2026-07-08T21:34:20Z — quest_status: complete
+- iteration: 1
+- head_sha: f7c7164
+- changed: M1/M2 done — doctor recommended_path output plus provider work dry-run handoffs
+- validation_summary: `npm test` → 151 passed, 0 failed; `npm run check:parity` → parity: OK
+
+Done — `quest codex doctor --json` includes deterministic recommended_path data for native subagents, goal-required runner fallback, and goal-auto fallback, covered by tests/cli.test.mjs. Done — human doctor output prints the same recommendation after all check lines, covered by tests/cli.test.mjs. Done — `quest codex work <id> --dry-run` and `quest claude work <id> --dry-run` run doctor --fix health gates and print provider-specific native handoff prompts or Codex runner fallback command, covered by tests/cli.test.mjs. Done — setup-red work dry-run refuses to print a handoff, covered by tests/cli.test.mjs stale PATH scenario. Done — `npm test` and `npm run check:parity` pass.
