@@ -1,7 +1,7 @@
 ---
 id: 25
 title: Tighten native hooks and session status cards
-status: in_progress
+status: complete
 priority: p1
 worker: codex
 model: gpt-5.5
@@ -9,7 +9,7 @@ effort: high
 max_iterations: 4
 parent: 21
 created: 2026-07-08T21:20:35Z
-updated: 2026-07-08T21:27:50Z
+updated: 2026-07-08T21:29:32Z
 ---
 
 # Tighten native hooks and session status cards
@@ -50,3 +50,12 @@ Loop findings: native provider loops 4 and 5, plus CLI loop 1. Files and symbols
 - iteration: 1
 - changed: M1 — SubagentStop detects native quest-executor launch prompts with explicit quest ids before mutating commands while preserving silent allows for non-executor or missing-prompt payloads
 - validation_summary: `npm test` → 145 passed, 0 failed
+
+<!-- quest:checkpoint -->
+### 2026-07-08T21:29:32Z — quest_status: complete
+- iteration: 2
+- head_sha: 55e393c
+- changed: M1/M2 — SubagentStop native executor detection and SessionStart local/GitHub startup status tightened
+- validation_summary: `npm test` → 147 passed, 0 failed
+
+Done: SubagentStop native quest-executor explicit quest id before mutating command covered by native quest-executor launch test. Done: read-only reviewers, unrelated agents, missing prompts, and unknown quests allow silently via existing and new SubagentStop tests. Done: SessionStart emits exact local next actions and GitHub no-network hint via seeded, empty, and github store tests. Done: hook tests cover native-executor and GitHub-store cases. Done: npm test passed at HEAD 55e393c.
