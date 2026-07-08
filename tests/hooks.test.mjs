@@ -6,7 +6,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { run } from "../lib/cli.mjs";
@@ -278,7 +278,26 @@ test("SessionStart: seeded store injects counts and the in-flight quest", async 
   assert.equal(res.status, 0);
   assert.match(res.stdout, /in_progress/);
   assert.match(res.stdout, /Ship the widget/);
-  assert.match(res.stdout, /quest list --ready/);
+  assert.match(res.stdout, /Next: run `quest show 1 --json`/);
+});
+
+test("SessionStart: empty local store injects a create next action", async () => {
+  await run(["init"], io);
+  const res = fire(SESSION_START, { session_id: "s1", cwd, hook_event_name: "SessionStart", source: "startup" });
+  assert.equal(res.status, 0);
+  assert.match(res.stdout, /local backend, no quests/);
+  assert.match(res.stdout, /Next: run `quest create --help`/);
+});
+
+test("SessionStart: github store injects a no-network live-state hint", async () => {
+  await run(["init"], io);
+  writeFileSync(join(cwd, ".quests", "config.json"), JSON.stringify({ backend: "github", github: { repo: "o/r" } }, null, 2) + "\n");
+  const res = fire(SESSION_START, { session_id: "s1", cwd, hook_event_name: "SessionStart", source: "startup" });
+  assert.equal(res.status, 0);
+  assert.match(res.stdout, /github backend for o\/r/);
+  assert.match(res.stdout, /No GitHub request was made by this hook/);
+  assert.match(res.stdout, /Next: run `quest list --ready`/);
+  assert.equal(res.stderr, "");
 });
 
 test("PlanExitReminder: ExitPlanMode Quest handoff emits orchestration reminder", () => {

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // SessionStart hook (startup / clear / compact). When a `.quests/` store exists
 // at or above the session's cwd, write a short one-paragraph summary of in-flight
-// quests and active runs to stdout — Claude Code injects stdout as session
-// context. No store, a non-local backend, an empty store, or ANY error → a silent
-// no-op (exit 0). Reads only; no network and no child processes, so it stays fast.
+// local quests and active runs to stdout — Claude Code injects stdout as session
+// context. GitHub-backed stores get a no-network hint instead of live issue
+// counts. No store or ANY error → a silent no-op (exit 0). Reads only; no network
+// and no child processes, so it stays fast.
 
 import { writeSync } from "node:fs";
 import { findStoreDir, loadConfig } from "../lib/config.mjs";
@@ -24,23 +25,29 @@ function activeRunCount(storeDir) {
 }
 
 // One paragraph (<= ~3 lines): counts by status, up to 3 in-flight quests, the
-// active-run count, and the ready-list hint. Returns null when there is nothing
-// worth injecting (empty store).
+// active-run count, and one exact next command.
 function buildContext(storeDir) {
   const all = listQuests(storeDir);
-  if (!all.length) return null;
+  if (!all.length) return "Quest store (.quests): local backend, no quests.\nNext: run `quest create --help`.";
   const counts = {};
   for (const q of all) counts[q.status] = (counts[q.status] ?? 0) + 1;
   const countStr = STATUS_ORDER.filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`).join(", ");
-  const inFlight = all
+  const inFlightQuests = all
     .filter((q) => q.status === "in_progress" || q.status === "blocked")
     .sort((a, b) => (a.status === b.status ? a.id - b.id : a.status === "in_progress" ? -1 : 1))
-    .slice(0, 3)
-    .map((q) => `#${q.id} ${q.title} [${q.status}]`);
+    .slice(0, 3);
+  const inFlight = inFlightQuests.map((q) => `#${q.id} ${q.title} [${q.status}]`);
   const lines = [`Quest store (.quests): ${all.length} quest${all.length === 1 ? "" : "s"} — ${countStr}.`];
   if (inFlight.length) lines.push(`In flight: ${inFlight.join("; ")}.`);
-  lines.push(`Active runs: ${activeRunCount(storeDir)}. Ready to work next: \`quest list --ready\`.`);
+  const next = inFlightQuests[0] ? `quest show ${inFlightQuests[0].id} --json` : "quest list --ready";
+  lines.push(`Active runs: ${activeRunCount(storeDir)}. Next: run \`${next}\`.`);
   return lines.join("\n");
+}
+
+function githubContext(config) {
+  const repo = config.github?.repo;
+  const scope = repo ? ` for ${repo}` : "";
+  return `Quest store (.quests): github backend${scope}. No GitHub request was made by this hook.\nNext: run \`quest list --ready\` when you need live issue state.`;
 }
 
 try {
@@ -50,7 +57,12 @@ try {
   const cwd = typeof payload.cwd === "string" && payload.cwd ? payload.cwd : process.cwd();
   const storeDir = findStoreDir(cwd, process.env);
   if (!storeDir) process.exit(0); // no store here — silent no-op, NOT an error
-  if (loadConfig(storeDir, process.env).backend !== "local") process.exit(0); // only local is readable today
+  const config = loadConfig(storeDir, process.env);
+  if (config.backend === "github") {
+    writeSync(1, githubContext(config) + "\n");
+    process.exit(0);
+  }
+  if (config.backend !== "local") process.exit(0);
   const context = buildContext(storeDir);
   if (context) writeSync(1, context + "\n");
   process.exit(0);
