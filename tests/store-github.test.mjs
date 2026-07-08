@@ -36,7 +36,7 @@ const CREATE = [
 
 test("init --backend github requires auth, creates labels, writes local github config", async () => {
   assert.equal(await run(["init", "--backend", "github", "--repo", "o/r"], io()), 0);
-  assert.match(out.join("\n"), /Store created/);
+  assert.match(out.join("\n"), /Store ready: github backend/);
   const cfg = JSON.parse(readFileSync(join(cwd, ".quests", "config.json"), "utf8"));
   assert.equal(cfg.backend, "github");
   assert.equal(cfg.github.repo, "o/r");

@@ -597,7 +597,7 @@ test("commands without a store exit 3 with init hint", async () => {
 
 test("full lifecycle through the CLI, with --json shapes", async () => {
   assert.equal(await run(["init"], io), 0);
-  assert.match(out.join("\n"), /Store created/);
+  assert.match(out.join("\n"), /Store ready: local backend/);
 
   out.length = 0;
   assert.equal(await run([...CREATE, "--json"], io), 0);
@@ -626,12 +626,21 @@ test("full lifecycle through the CLI, with --json shapes", async () => {
 test("bare quest with a store shows the overview", async () => {
   await run(["init"], io);
   await run(CREATE, io);
+  await run(["create", "--title", "Blocked quest", "--objective", "Expose blocked work in the dashboard.", "--done-when", "dashboard shows blocked quest", "--validation", "npm test"], io);
+  await run(["start", "2"], io);
+  await run(["checkpoint", "2", "--status", "blocked", "--summary", "blocked on decision", "--validation", "same error twice"], io);
+  writeFileSync(join(cwd, ".quests", "runs.ndjson"), JSON.stringify({ event: "run_started", run_id: "r1", quest: 2, worker: "codex" }) + "\n");
   out.length = 0;
   assert.equal(await run([], io), 0);
   const text = out.join("\n");
   assert.match(text, /1 todo/);
-  assert.match(text, /Ready to work/);
+  assert.match(text, /1 blocked/);
+  assert.match(text, /Active runs: 1/);
+  assert.match(text, /In flight \/ blocked/);
+  assert.match(text, /2\. \[blocked\] \[p2\] Blocked quest/);
+  assert.match(text, /Ready work/);
   assert.match(text, /Demo quest/);
+  assert.match(text, /Next: `quest runs --active`/);
 });
 
 test("list --queue exposes inline-close-ready epics without list --ready dispatchability", async () => {

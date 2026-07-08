@@ -128,7 +128,8 @@ you drive it from Claude Code, Codex, or a plain shell.
 
 ## Quickstart
 
-Create a store in your project, author a quest, check it, and work it:
+Create a store in your project, author a quest, check it, then use the compact
+dashboard to pick the next action:
 
 ```bash
 # 1. Create a quest store (.quests/) here
@@ -141,11 +142,14 @@ quest create --title "Add dark mode" \
   --done-when "\`npm test\` passes including new theme tests" \
   --validation "npm test"
 
-# 3. Check it against the contract spec
-quest lint --all
+# 3. Check the new quest against the contract spec
+quest lint 1
 
-# 4. See what's ready to work (dependencies met)
-quest list --ready
+# 4. Show counts, active work, ready work, and the next command
+quest
+
+# 5. Read the quest before working it
+quest show 1 --json
 ```
 
 By default, `quest init` also installs project-scoped native agent templates for
@@ -237,6 +241,7 @@ full base protocol lives in
 
 | Command | Purpose |
 |---|---|
+| bare `quest` | Show a compact dashboard with counts, active work, ready work, active runs, and the next command |
 | `quest init` | Create a quest store (`.quests/`) and install project-scoped Codex/Claude agent templates by default |
 | `quest create` | Create a new quest (the only way records are born) |
 | `quest list` | List quests (filter by status, parent, or readiness) |
