@@ -24,6 +24,7 @@ const CODEX_COMMAND_TRANSCRIPT = new URL("./fixtures/codex-command-execution-tra
 const CODEX_GREP_TRANSCRIPT = new URL("./fixtures/codex-grep-false-positive-transcript.jsonl", import.meta.url).pathname;
 const CODEX_MSG_WRAPPED_TRANSCRIPT = new URL("./fixtures/codex-msg-wrapped-transcript.jsonl", import.meta.url).pathname;
 const CODEX_QUOTED_SEP_TRANSCRIPT = new URL("./fixtures/codex-quoted-separator-transcript.jsonl", import.meta.url).pathname;
+const NATIVE_EXECUTOR_NO_COMMAND_TRANSCRIPT = new URL("./fixtures/native-executor-no-command-transcript.jsonl", import.meta.url).pathname;
 
 // Clean env: strip QUEST_DIR/QUEST_BACKEND so store discovery is driven purely by
 // the payload cwd, matching how the hook runs inside a real session.
@@ -209,6 +210,40 @@ test("SubagentStop: a separator inside quotes does not forge a command head", as
   const res = fire(SUBAGENT_STOP, stopPayload(CODEX_QUOTED_SEP_TRANSCRIPT));
   assert.equal(res.status, 0);
   assert.equal(res.stdout.trim(), "", "`echo 'done; quest checkpoint 1'` is not a quest invocation → allowed silently");
+});
+
+test("SubagentStop: native quest-executor launch keys detection before mutating commands", async () => {
+  await seedQuest(); // quest 1, in_progress, zero checkpoints
+  const res = fire(SUBAGENT_STOP, {
+    ...stopPayload(NATIVE_EXECUTOR_NO_COMMAND_TRANSCRIPT),
+    agent_type: "quest-executor",
+    prompt: "First call create_goal with: quest 1 has a new checkpoint whose quest_status is complete or blocked in `quest show 1 --json`; verify with get_goal; work quest 1 per $quest:work; only call update_goal(status=\"complete\") after the checkpoint exists.",
+  });
+  assert.equal(res.status, 0);
+  const decision = JSON.parse(res.stdout.trim());
+  assert.equal(decision.decision, "block");
+  assert.equal(
+    decision.reason,
+    "quest 1: record a checkpoint via `quest checkpoint 1` before stopping (protocol: no stop without a checkpoint)",
+  );
+});
+
+test("SubagentStop: native agent payload without an explicit executor quest id is allowed silently", async () => {
+  await seedQuest(); // quest 1, in_progress, zero checkpoints — would block if detected
+  const reviewer = fire(SUBAGENT_STOP, {
+    ...stopPayload(NATIVE_EXECUTOR_NO_COMMAND_TRANSCRIPT),
+    agent_type: "quest-reviewer",
+    prompt: "Review quest 1 and report findings.",
+  });
+  assert.equal(reviewer.status, 0);
+  assert.equal(reviewer.stdout.trim(), "");
+
+  const missingPrompt = fire(SUBAGENT_STOP, {
+    ...stopPayload(NATIVE_EXECUTOR_NO_COMMAND_TRANSCRIPT),
+    agent_type: "quest-executor",
+  });
+  assert.equal(missingPrompt.status, 0);
+  assert.equal(missingPrompt.stdout.trim(), "");
 });
 
 // (c) a subagent whose transcript has no marker is never touched.

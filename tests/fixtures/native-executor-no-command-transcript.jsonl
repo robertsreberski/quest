@@ -1,0 +1,2 @@
+{"type":"user","timestamp":"2020-01-01T00:00:00.000Z","message":{"role":"user","content":"First call create_goal with: quest 1 has a new checkpoint whose quest_status is complete or blocked in `quest show 1 --json`; verify with get_goal; work quest 1 per $quest:work; only call update_goal(status=\"complete\") after the checkpoint exists."}}
+{"type":"assistant","timestamp":"2020-01-01T00:00:01.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Creating the goal before running commands."}]}}

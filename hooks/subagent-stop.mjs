@@ -6,18 +6,22 @@
 // A subagent counts as a quest-executor iff one of its transcript entries records
 // an actual *mutating* quest invocation — `quest start <id>` or `quest checkpoint
 // <id>` (under any binary prefix: `quest`, `./bin/quest`, `node bin/quest`) — as a
-// tool_use block whose shell command carries the marker. Read-only verbs
-// (`quest show <id> --json`, `list`, `protocol`, `runs`) are how reviewers and
-// orchestrators inspect a quest without owning it, so they must NEVER key
+// tool_use block whose shell command carries the marker, OR the native subagent
+// stop payload itself names the Quest-owned `quest-executor` agent and carries a
+// launch prompt in the orchestrator's narrow `work quest <id>` shape. Read-only
+// verbs (`quest show <id> --json`, `list`, `protocol`, `runs`) are how reviewers
+// and orchestrators inspect a quest without owning it, so they must NEVER key
 // detection: an agent whose transcript holds only read verbs is allowed silently.
-// The executor id comes from that first mutating invocation (deterministic,
-// transcript order) — including `quest checkpoint <id>`, because an executor
-// resuming an already-in_progress quest skips `quest start` and its first mutating
-// verb is the checkpoint. We parse the JSONL per-entry and inspect only tool_use
-// command inputs; prose, quoted skill text, examples, and echoed file contents live
-// in text blocks and tool_result content (never in a tool_use command), so
-// `quest start 12` / `quest checkpoint 12` examples in the skills can no longer key
-// detection. No mutating invocation → not our concern, allow silently. We then
+// The executor id comes from the first mutating invocation (deterministic,
+// transcript order) when present — including `quest checkpoint <id>`, because an
+// executor resuming an already-in_progress quest skips `quest start` and its first
+// mutating verb is the checkpoint. If no mutating command has run yet, a native
+// `quest-executor` launch prompt with an explicit quest id can still identify the
+// owner. We parse the JSONL per-entry and inspect only command inputs; prose,
+// quoted skill text, examples, and echoed file contents live in text blocks and
+// tool_result content (never in a command), so `quest start 12` / `quest checkpoint
+// 12` examples in the skills can no longer key detection. No mutating invocation
+// and no native executor launch id → not our concern, allow silently. We then
 // compare the quest's latest checkpoint against the subagent's start time (the
 // transcript's first timestamp): a checkpoint newer than start clears the stop; so
 // does a terminal store status (complete/blocked/cancelled) reached during the run.
@@ -41,6 +45,8 @@ import { loadQuest } from "../lib/store-local.mjs";
 // `git commit -m "quest checkpoint 1"`) does not falsely key executor detection.
 // Read verbs (show/list/protocol/runs) are deliberately absent.
 const MARKER = /^(?:node\s+)?(?:[.\w/@-]*\/)?quest\s+(start|checkpoint)\s+(\d+)/;
+const NATIVE_EXECUTOR_AGENT = "quest-executor";
+const NATIVE_WORK_PROMPT = /\bwork\s+quest\s+(\d+)\b/i;
 
 // Split a shell command into top-level segments on `&&`, `||`, `;`, `|`, and
 // newline, IGNORING any separator that sits inside single or double quotes. This
@@ -143,6 +149,20 @@ function commandOf(input) {
   return input && typeof input === "object" && typeof input.command === "string" ? input.command : null;
 }
 
+function firstString(...values) {
+  return values.find((v) => typeof v === "string" && v.trim());
+}
+
+function nativeExecutorQuestId(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  const agentType = firstString(payload.agent_type, payload.agentType, payload.agent_name, payload.agentName, payload.name);
+  if (agentType !== NATIVE_EXECUTOR_AGENT) return null;
+  const prompt = firstString(payload.prompt, payload.task_prompt, payload.taskPrompt, payload.agent_prompt, payload.agentPrompt);
+  if (!prompt) return null;
+  const m = NATIVE_WORK_PROMPT.exec(prompt);
+  return m ? Number(m[1]) : null;
+}
+
 // The mutating-verb marker id from one transcript entry, considering only tool_use
 // command invocations. Assistant messages carry an array of content blocks; string
 // content (plain prose) and tool_result blocks (echoed output/file contents) are
@@ -200,7 +220,7 @@ try {
   try { transcript = readFileSync(transcriptPath, "utf8"); }
   catch (err) { diag(`cannot read transcript (${err.code || err.message}); allowing`); allow(); }
 
-  const id = executorQuestId(transcript);
+  const id = executorQuestId(transcript) ?? nativeExecutorQuestId(payload);
   if (id == null) allow(); // no mutating quest invocation (read-only agent) — leave it alone, silently
 
   // Prefer an explicit start field if a future payload carries one; else the
