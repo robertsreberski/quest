@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## [0.3.2] — 2026-07-08
+
 ### Added
 - Added Claude setup parity: `quest claude install-agents --scope project` and
   `quest claude doctor` now mirror the existing Codex setup flow.
@@ -15,10 +17,6 @@ All notable changes to this project are documented here. The format follows
   templates by default, `--no-agents` skips that install, and conflicting
   project templates fail init before `.quests/` is created unless users
   intentionally rerun the explicit provider install command with `--force`.
-
-## [0.3.2] — 2026-07-08
-
-### Changed
 - `$quest:orchestrate` now states that Codex native subagents are the default
   dispatch path for serial and parallel waves; `quest-run` is fallback-only
   unless headless/background execution is explicitly requested.
