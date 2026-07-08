@@ -51,8 +51,19 @@ function splitTopLevel(s) {
   const segs = [];
   let buf = "";
   let quote = null;
+  let escaped = false;
   for (let i = 0; i < s.length; i++) {
     const c = s[i];
+    if (escaped) {
+      buf += c;
+      escaped = false;
+      continue;
+    }
+    if (quote !== "'" && c === "\\") {
+      buf += c;
+      escaped = true;
+      continue;
+    }
     if (quote) {
       if (c === quote) quote = null;
       buf += c;
