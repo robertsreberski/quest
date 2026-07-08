@@ -1,7 +1,7 @@
 ---
 id: 25
 title: Tighten native hooks and session status cards
-status: complete
+status: in_progress
 priority: p1
 worker: codex
 model: gpt-5.5
@@ -9,7 +9,7 @@ effort: high
 max_iterations: 4
 parent: 21
 created: 2026-07-08T21:20:35Z
-updated: 2026-07-08T21:29:32Z
+updated: 2026-07-08T21:32:34Z
 ---
 
 # Tighten native hooks and session status cards
@@ -59,3 +59,10 @@ Loop findings: native provider loops 4 and 5, plus CLI loop 1. Files and symbols
 - validation_summary: `npm test` → 147 passed, 0 failed
 
 Done: SubagentStop native quest-executor explicit quest id before mutating command covered by native quest-executor launch test. Done: read-only reviewers, unrelated agents, missing prompts, and unknown quests allow silently via existing and new SubagentStop tests. Done: SessionStart emits exact local next actions and GitHub no-network hint via seeded, empty, and github store tests. Done: hook tests cover native-executor and GitHub-store cases. Done: npm test passed at HEAD 55e393c.
+
+<!-- quest:checkpoint -->
+### 2026-07-08T21:32:34Z — quest_status: in_progress
+- iteration: 3
+- changed: reopened from complete
+- validation_summary: reopened for further work; no execution this entry
+- reopen_reason: review found missing-input and unknown-store allow paths were not silent and were not tested as written
