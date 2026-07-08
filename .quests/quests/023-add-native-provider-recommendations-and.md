@@ -1,7 +1,7 @@
 ---
 id: 23
 title: Add native provider recommendations and work handoffs
-status: in_progress
+status: complete
 priority: p0
 worker: codex
 model: gpt-5.5
@@ -10,7 +10,7 @@ max_iterations: 5
 parent: 21
 depends_on: [22]
 created: 2026-07-08T21:20:18Z
-updated: 2026-07-08T21:38:19Z
+updated: 2026-07-08T21:40:22Z
 ---
 
 # Add native provider recommendations and work handoffs
@@ -62,3 +62,11 @@ Done — `quest codex doctor --json` includes deterministic recommended_path dat
 - changed: reopened from complete
 - validation_summary: reopened for further work; no execution this entry
 - reopen_reason: review found provider work --dry-run invokes doctor --fix and writes native agent files
+
+<!-- quest:checkpoint -->
+### 2026-07-08T21:40:22Z — quest_status: complete
+- iteration: 3
+- changed: M2 reopen fix done - provider work dry-run uses read-only doctor and refuses red setup without writing agent templates
+- validation_summary: `npm test` -> 154 passed, 0 failed; `npm run check:parity` -> parity: OK
+
+Done - `quest codex doctor --json` still includes deterministic recommended_path data; existing tests passed under `npm test`. Done - human doctor output still prints the same recommendation concisely; existing tests passed under `npm test`. Done - `quest codex work <id> --dry-run` and `quest claude work <id> --dry-run` use the provider health gate and print exact handoffs only after setup is green; tests/cli.test.mjs installs templates explicitly for the green handoff case. Done - doctor-red work dry-runs refuse handoff and the new read-only test asserts no .codex/agents or .claude/agents files are created when templates are missing. Done - `npm test` passed with 154 passed, 0 failed; `npm run check:parity` printed parity: OK.
