@@ -1,7 +1,7 @@
 ---
 id: 26
 title: Expose queue semantics and graph lint
-status: in_progress
+status: complete
 priority: p1
 worker: codex
 model: gpt-5.5
@@ -10,7 +10,7 @@ max_iterations: 5
 parent: 21
 depends_on: [22, 25]
 created: 2026-07-08T21:20:42Z
-updated: 2026-07-08T21:38:58Z
+updated: 2026-07-08T21:43:44Z
 ---
 
 # Expose queue semantics and graph lint
@@ -45,3 +45,12 @@ Loop findings: contract/store loops 3, 4, and 5; runner loop 2. Files and symbol
 - requiring structured final done-evidence in checkpoint format
 
 ## Checkpoints
+
+<!-- quest:checkpoint -->
+### 2026-07-08T21:43:44Z — quest_status: complete
+- iteration: 1
+- head_sha: 449177b
+- changed: M1/M2 done — shared queue graph logic, queue output, lint graph checks, and runner epic handling
+- validation_summary: `npm test` → 158 passed, 0 failed
+
+Done — local and GitHub backends share computeQueue/lintGraphReferences in lib/graph.mjs, with worker_ready, inline_close_ready_epics, and blocked reasons covered by tests/store-local.test.mjs and tests/store-github.test.mjs.\nDone — quest list --queue --json exposes inline_close_ready_epics while quest list --ready stays worker-dispatchable only, covered by tests/cli.test.mjs.\nDone — quest lint --all reports missing parent and depends_on references in hand-corrupted local and GitHub stores, covered by tests/store-local.test.mjs and tests/store-github.test.mjs; live quest lint --all returned OK (26 records).\nDone — quest-run --ready consumes queue output and reports inline-close-ready epics without dispatching workers, covered by tests/runner.test.mjs.\nDone — npm test returned 158 passed, 0 failed.
