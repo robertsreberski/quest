@@ -1,6 +1,6 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { run } from "../lib/cli.mjs";
@@ -76,6 +76,36 @@ test("codex install-agents installs native project agents idempotently", async (
   err.length = 0;
   assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 2);
   assert.match(err.join("\n"), /--force/);
+});
+
+test("codex install-agents --dry-run previews a conflict instead of erroring", async () => {
+  await run(["codex", "install-agents", "--scope", "project"], io);
+  const reviewer = join(cwd, ".codex", "agents", "quest-reviewer.toml");
+  writeFileSync(reviewer, "name = \"custom-reviewer\"\n");
+
+  out.length = 0;
+  err.length = 0;
+  assert.equal(await run(["codex", "install-agents", "--scope", "project", "--dry-run", "--json"], io), 0);
+  const result = JSON.parse(out[0]);
+  assert.equal(result.ok, false);
+  assert.equal(result.dry_run, true);
+  assert.ok(result.actions.some((a) => a.action === "conflict"));
+  // The preview must not touch disk — the custom file is intact.
+  assert.equal(readFileSync(reviewer, "utf8"), "name = \"custom-reviewer\"\n");
+});
+
+test("codex install-agents is atomic — a later conflict writes no earlier agent", async () => {
+  // Only the reviewer exists (customized); the executor is absent. A no-force run
+  // must refuse the whole set, not create the executor before hitting the conflict.
+  const agentsDir = join(cwd, ".codex", "agents");
+  const reviewer = join(agentsDir, "quest-reviewer.toml");
+  const executor = join(agentsDir, "quest-executor.toml");
+  mkdirSync(agentsDir, { recursive: true });
+  writeFileSync(reviewer, "name = \"custom-reviewer\"\n");
+  err.length = 0;
+  assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 2);
+  assert.equal(existsSync(executor), false, "executor must not be partially installed");
+  assert.equal(readFileSync(reviewer, "utf8"), "name = \"custom-reviewer\"\n");
 });
 
 test("codex doctor verifies CLI/plugin/hooks/skills/agents from native surfaces", async () => {

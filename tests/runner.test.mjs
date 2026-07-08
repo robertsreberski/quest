@@ -235,6 +235,25 @@ test("codex: require goal mode blocks when goal tools remain unavailable", async
   assert.match(recordText(), /goal tools were required/);
 });
 
+test("codex: require goal mode blocks even when a milestone checkpoint lands", async () => {
+  await createQuest("codex");
+  // The worker makes real in_progress progress but never invokes create_goal —
+  // require mode must still block, not accept the milestone as satisfying it.
+  writeScenario({
+    initial: { createGoal: false, checkpoint: "in_progress" },
+    resume: { createGoal: false },
+  });
+  const { io } = runnerIo();
+
+  const code = await runnerRun(["1", "--codex-goal-mode", "require"], io);
+  assert.equal(code, 10);
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "blocked");
+  assert.match(recordText(), /goal tools were required/);
+  // The blocked session is still journaled as a finished iteration (telemetry).
+  const iters = runsEvents().filter((e) => e.event === "iteration_finished");
+  assert.equal(iters.length, 1, "the blocked session must appear in run telemetry");
+});
+
 test("codex: default sandbox is workspace-write in the built invocation", async () => {
   await createQuest("codex");
   const { io, out } = runnerIo();

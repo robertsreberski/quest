@@ -34,10 +34,37 @@ import { readFileSync, writeSync } from "node:fs";
 import { findStoreDir } from "../lib/config.mjs";
 import { loadQuest } from "../lib/store-local.mjs";
 
-// Mutating quest verbs only. Group 1 is the verb, group 2 the id. `\bquest`
-// anchors on a word boundary so `bin/quest` and `./bin/quest` match while
-// `conquest` does not; read verbs (show/list/protocol/runs) are deliberately absent.
-const MARKER = /\bquest\s+(start|checkpoint)\s+(\d+)/;
+// Mutating quest verbs only. Group 1 is the verb, group 2 the id. The marker is
+// anchored to a COMMAND position — an optional `node ` launcher and/or path prefix
+// then `quest <verb> <id>` at the head of a command — so `quest checkpoint 1`
+// merely quoted inside another program's argument (e.g. `grep 'quest checkpoint 1'`,
+// `git commit -m "quest checkpoint 1"`) does not falsely key executor detection.
+// Read verbs (show/list/protocol/runs) are deliberately absent.
+const MARKER = /^(?:node\s+)?(?:[.\w/@-]*\/)?quest\s+(start|checkpoint)\s+(\d+)/;
+
+// Strip a leading shell wrapper (`bash -lc '…'`, `sh -c "…"`) and split a command
+// chain, then look for a quest invocation at the head of any segment. Returns the
+// marker id or null.
+function markerIdInCommand(cmd) {
+  if (typeof cmd !== "string") return null;
+  let s = cmd.trim();
+  const wrap = s.match(/^(?:sudo\s+)?(?:ba)?sh\s+-l?c\s+(['"])([\s\S]*)\1\s*$/);
+  if (wrap) s = wrap[2].trim();
+  for (const seg of s.split(/&&|\|\||;|\n|\|/)) {
+    const m = MARKER.exec(seg.trim());
+    if (m) return Number(m[2]); // m[1] = verb, m[2] = id
+  }
+  return null;
+}
+
+// A Codex `command_execution` item's shell command, across the JSONL envelope
+// shapes we know: top-level `item`, legacy `msg` (the item sits directly at
+// `entry.msg`), and `msg.item`. Returns the command string or null.
+function commandExecutionCommand(node) {
+  if (!node || typeof node !== "object") return null;
+  if (node.type === "command_execution" && typeof node.command === "string") return node.command;
+  return null;
+}
 const TERMINAL = ["complete", "blocked", "cancelled"];
 
 async function readStdin() {
@@ -85,26 +112,27 @@ function commandOf(input) {
 // content (plain prose) and tool_result blocks (echoed output/file contents) are
 // ignored. Matches `quest start <id>` or `quest checkpoint <id>` and returns the id.
 function markerIdInEntry(entry) {
-  const item = entry && typeof entry === "object" ? entry.item : null;
-  if (item && typeof item === "object" && item.type === "command_execution" && typeof item.command === "string") {
-    const m = MARKER.exec(item.command);
-    if (m) return Number(m[2]);
-  }
-  const msgItem = entry && typeof entry === "object" && entry.msg && typeof entry.msg === "object" ? entry.msg.item : null;
-  if (msgItem && typeof msgItem === "object" && msgItem.type === "command_execution" && typeof msgItem.command === "string") {
-    const m = MARKER.exec(msgItem.command);
-    if (m) return Number(m[2]);
+  if (!entry || typeof entry !== "object") return null;
+
+  // Codex JSONL: a `command_execution` item under `item`, the legacy `msg`, or
+  // `msg.item`. Handling all three keeps executor detection robust across shapes.
+  for (const cand of [entry.item, entry.msg, entry.msg?.item]) {
+    const cmd = commandExecutionCommand(cand);
+    if (cmd != null) {
+      const id = markerIdInCommand(cmd);
+      if (id != null) return id;
+    }
   }
 
-  const msg = entry && typeof entry === "object" ? entry.message : null;
+  // Claude assistant messages: tool_use blocks carrying a shell command. String
+  // content (plain prose) and tool_result blocks are ignored.
+  const msg = entry.message;
   const content = msg && typeof msg === "object" ? msg.content : null;
   if (!Array.isArray(content)) return null; // string content is prose, never an invocation
   for (const block of content) {
     if (!block || typeof block !== "object" || block.type !== "tool_use") continue;
-    const cmd = commandOf(block.input);
-    if (typeof cmd !== "string") continue;
-    const m = MARKER.exec(cmd);
-    if (m) return Number(m[2]); // m[1] = verb, m[2] = id
+    const id = markerIdInCommand(commandOf(block.input));
+    if (id != null) return id;
   }
   return null;
 }

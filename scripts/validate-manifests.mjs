@@ -87,12 +87,23 @@ if (hookConfig != null) {
       for (const [groupIndex, group] of groups.entries()) {
         for (const [hookIndex, hook] of (group.hooks || []).entries()) {
           if (hook.type !== "command") continue;
+          const where = `${event}[${groupIndex}].hooks[${hookIndex}]`;
           const command = String(hook.command || "");
           if (!command.includes("CODEX_PLUGIN_ROOT") || !command.includes("CLAUDE_PLUGIN_ROOT")) {
-            errors.push(`${HOOKS}: ${event}[${groupIndex}].hooks[${hookIndex}] command must use CODEX_PLUGIN_ROOT with CLAUDE_PLUGIN_ROOT fallback`);
+            errors.push(`${HOOKS}: ${where} command must use CODEX_PLUGIN_ROOT with CLAUDE_PLUGIN_ROOT fallback`);
           }
-          if (hook.timeout == null) errors.push(`${HOOKS}: ${event}[${groupIndex}].hooks[${hookIndex}] missing timeout`);
-          if (!hook.statusMessage) errors.push(`${HOOKS}: ${event}[${groupIndex}].hooks[${hookIndex}] missing statusMessage`);
+          // The Windows variant must exist and honour the same dual-root fallback,
+          // else a broken Windows batch line ships with CI green.
+          if (hook.commandWindows == null) {
+            errors.push(`${HOOKS}: ${where} missing commandWindows`);
+          } else {
+            const commandWindows = String(hook.commandWindows);
+            if (!commandWindows.includes("CODEX_PLUGIN_ROOT") || !commandWindows.includes("CLAUDE_PLUGIN_ROOT")) {
+              errors.push(`${HOOKS}: ${where} commandWindows must use CODEX_PLUGIN_ROOT with CLAUDE_PLUGIN_ROOT fallback`);
+            }
+          }
+          if (hook.timeout == null) errors.push(`${HOOKS}: ${where} missing timeout`);
+          if (!hook.statusMessage) errors.push(`${HOOKS}: ${where} missing statusMessage`);
         }
       }
     }
