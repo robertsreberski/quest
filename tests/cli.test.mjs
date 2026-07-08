@@ -1,6 +1,6 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, delimiter } from "node:path";
 import { run } from "../lib/cli.mjs";
@@ -86,6 +86,36 @@ test("codex install-agents installs native project agents idempotently", async (
   assert.match(err.join("\n"), /--force/);
 });
 
+test("claude install-agents installs native project agents idempotently", async () => {
+  assert.equal(await run(["claude", "install-agents", "--scope", "project", "--dry-run", "--json"], io), 0);
+  let result = JSON.parse(out[0]);
+  assert.equal(result.provider, "claude");
+  assert.equal(result.dry_run, true);
+  assert.equal(result.actions.length, 2);
+  assert.ok(result.actions.every((a) => a.action === "create"));
+  assert.equal(existsSync(join(cwd, ".claude", "agents", "quest-executor.md")), false);
+
+  out.length = 0;
+  assert.equal(await run(["claude", "install-agents", "--scope", "project", "--json"], io), 0);
+  result = JSON.parse(out[0]);
+  assert.equal(result.ok, true);
+  const executor = join(cwd, ".claude", "agents", "quest-executor.md");
+  const reviewer = join(cwd, ".claude", "agents", "quest-reviewer.md");
+  assert.ok(existsSync(executor));
+  assert.ok(existsSync(reviewer));
+  assert.match(readFileSync(executor, "utf8"), /name: quest-executor/);
+
+  out.length = 0;
+  assert.equal(await run(["claude", "install-agents", "--scope", "project", "--json"], io), 0);
+  result = JSON.parse(out[0]);
+  assert.ok(result.actions.every((a) => a.action === "unchanged"));
+
+  writeFileSync(reviewer, "name: custom-reviewer\n");
+  err.length = 0;
+  assert.equal(await run(["claude", "install-agents", "--scope", "project"], io), 2);
+  assert.match(err.join("\n"), /--force/);
+});
+
 test("codex install-agents --dry-run previews a conflict instead of erroring", async () => {
   await run(["codex", "install-agents", "--scope", "project"], io);
   const reviewer = join(cwd, ".codex", "agents", "quest-reviewer.toml");
@@ -116,6 +146,35 @@ test("codex install-agents is atomic — a later conflict writes no earlier agen
   assert.equal(readFileSync(reviewer, "utf8"), "name = \"custom-reviewer\"\n");
 });
 
+test("claude install-agents is atomic — a later conflict writes no earlier agent", async () => {
+  // Only the reviewer exists (customized); the executor is absent. A no-force run
+  // must refuse the whole set, not create the executor before hitting the conflict.
+  const agentsDir = join(cwd, ".claude", "agents");
+  const reviewer = join(agentsDir, "quest-reviewer.md");
+  const executor = join(agentsDir, "quest-executor.md");
+  mkdirSync(agentsDir, { recursive: true });
+  writeFileSync(reviewer, "name: custom-reviewer\n");
+  err.length = 0;
+  assert.equal(await run(["claude", "install-agents", "--scope", "project"], io), 2);
+  assert.equal(existsSync(executor), false, "executor must not be partially installed");
+  assert.equal(readFileSync(reviewer, "utf8"), "name: custom-reviewer\n");
+});
+
+test("install-agents refuses symlinked agent targets even with --force", async () => {
+  const agentsDir = join(cwd, ".claude", "agents");
+  const reviewer = join(agentsDir, "quest-reviewer.md");
+  const executor = join(agentsDir, "quest-executor.md");
+  const victim = join(cwd, "victim.md");
+  mkdirSync(agentsDir, { recursive: true });
+  writeFileSync(victim, "do not overwrite\n");
+  symlinkSync(victim, reviewer);
+
+  assert.equal(await run(["claude", "install-agents", "--scope", "project", "--force"], io), 2);
+  assert.match(err.join("\n"), /agent file already exists|symlink/);
+  assert.equal(readFileSync(victim, "utf8"), "do not overwrite\n");
+  assert.equal(existsSync(executor), false, "executor must not be partially installed");
+});
+
 test("codex doctor verifies CLI/plugin/hooks/skills/agents from native surfaces", async () => {
   assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 0);
   out.length = 0;
@@ -134,6 +193,34 @@ test("codex doctor verifies CLI/plugin/hooks/skills/agents from native surfaces"
   assert.match(byName["goals-feature"].detail, /create_goal\/get_goal/);
   assert.equal(byName["single-neutral-skill-root"].ok, true);
   assert.equal(byName["native-agents"].ok, true);
+});
+
+test("claude doctor verifies CLI/plugin and native-agent templates", async () => {
+  assert.equal(await run(["claude", "install-agents", "--scope", "project"], io), 0);
+  out.length = 0;
+  const claudeIo = { ...io, env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}` } };
+  assert.equal(await run(["claude", "doctor", "--json"], claudeIo), 0);
+  const result = JSON.parse(out[0]);
+  assert.equal(result.ok, true);
+  const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
+  assert.equal(byName["version-sync"].ok, true);
+  assert.equal(byName["quest-cli-path"].ok, true);
+  assert.equal(byName["claude-cli"].ok, true);
+  assert.equal(byName["plugin-installed"].ok, true);
+  assert.equal(byName["plugin-version"].ok, true);
+  assert.equal(byName["native-agents"].ok, true);
+});
+
+test("claude doctor fails when installed plugin is stale", async () => {
+  assert.equal(await run(["claude", "install-agents", "--scope", "project"], io), 0);
+  out.length = 0;
+  const claudeIo = { ...io, env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}`, QUEST_SHIM_CLAUDE_PLUGIN_VERSION: "0.3.0" } };
+  assert.equal(await run(["claude", "doctor", "--json"], claudeIo), 1);
+  const result = JSON.parse(out[0]);
+  const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
+  assert.equal(byName["plugin-version"].ok, false);
+  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.2/);
+  assert.match(byName["plugin-version"].detail, /claude plugin update quest@quest/);
 });
 
 test("codex doctor fails when quest on PATH is stale", async () => {
@@ -288,6 +375,39 @@ test("init --agents-md appends orientation section", async () => {
   const agents = readFileSync(join(cwd, "AGENTS.md"), "utf8");
   assert.match(agents, /## Quest goal-loop/);
   assert.match(agents, /quest checkpoint/);
+});
+
+test("init installs Codex and Claude project agents by default", async () => {
+  assert.equal(await run(["init"], io), 0);
+  assert.ok(existsSync(join(cwd, ".codex", "agents", "quest-executor.toml")));
+  assert.ok(existsSync(join(cwd, ".codex", "agents", "quest-reviewer.toml")));
+  assert.ok(existsSync(join(cwd, ".claude", "agents", "quest-executor.md")));
+  assert.ok(existsSync(join(cwd, ".claude", "agents", "quest-reviewer.md")));
+  assert.match(out.join("\n"), /Installed Codex agents/);
+  assert.match(out.join("\n"), /Installed Claude agents/);
+});
+
+test("init --no-agents skips project agent templates", async () => {
+  assert.equal(await run(["init", "--no-agents"], io), 0);
+  assert.ok(existsSync(join(cwd, ".quests", "config.json")));
+  assert.equal(existsSync(join(cwd, ".codex", "agents", "quest-executor.toml")), false);
+  assert.equal(existsSync(join(cwd, ".codex", "agents", "quest-reviewer.toml")), false);
+  assert.equal(existsSync(join(cwd, ".claude", "agents", "quest-executor.md")), false);
+  assert.equal(existsSync(join(cwd, ".claude", "agents", "quest-reviewer.md")), false);
+  assert.match(out.join("\n"), /Agent templates skipped/);
+});
+
+test("init refuses native agent conflicts before creating the store", async () => {
+  const agentsDir = join(cwd, ".claude", "agents");
+  mkdirSync(agentsDir, { recursive: true });
+  writeFileSync(join(agentsDir, "quest-reviewer.md"), "name: custom-reviewer\n");
+
+  assert.equal(await run(["init"], io), 2);
+  assert.match(err.join("\n"), /native agent template conflict/);
+  assert.match(err.join("\n"), /quest claude install-agents --scope project --force/);
+  assert.equal(existsSync(join(cwd, ".quests", "config.json")), false);
+  assert.equal(existsSync(join(cwd, ".codex", "agents", "quest-executor.toml")), false);
+  assert.equal(existsSync(join(cwd, ".claude", "agents", "quest-executor.md")), false);
 });
 
 test("edit requires rationale and records expansion", async () => {

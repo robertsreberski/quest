@@ -8,13 +8,17 @@
 import { readFileSync, writeFileSync, existsSync, appendFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
+const argv = process.argv.slice(2);
+const hasScenario = Object.prototype.hasOwnProperty.call(process.env, "QUEST_SHIM_SCENARIO");
 const scenarioPath = process.env.QUEST_SHIM_SCENARIO;
+if (!hasScenario) runWithoutScenario(argv);
+
 const scenario = JSON.parse(readFileSync(scenarioPath, "utf8"));
 const questDir = scenario.questDir || process.env.QUEST_DIR;
 const questBin = scenario.questBin;
 // Derive the target quest id from the prompt ("Work quest N …") so one shim can
 // serve a whole --ready wave; fall back to the scenario's fixed id.
-const argvAll = process.argv.slice(2).join(" ");
+const argvAll = argv.join(" ");
 const idMatch = argvAll.match(/quest (\d+)/);
 const id = String(idMatch ? idMatch[1] : scenario.questId);
 
@@ -23,7 +27,7 @@ const n = existsSync(countPath) ? Number(readFileSync(countPath, "utf8")) : 0;
 writeFileSync(countPath, String(n + 1));
 
 // Log the invocation for assertions.
-appendFileSync(scenarioPath + ".claude.calls.jsonl", JSON.stringify({ n, argv: process.argv.slice(2) }) + "\n");
+appendFileSync(scenarioPath + ".claude.calls.jsonl", JSON.stringify({ n, argv }) + "\n");
 
 const action = (scenario.sessions && scenario.sessions[n]) || "nothing";
 
@@ -65,4 +69,30 @@ function runNormal() {
     usage: { input_tokens: 100, output_tokens: 50 },
   };
   process.stdout.write(JSON.stringify(result) + "\n");
+}
+
+function runWithoutScenario(args) {
+  if (args.length === 1 && args[0] === "--version") {
+    process.stdout.write("2.1.204 (Claude Code)\n");
+    process.exit(0);
+  }
+
+  if (args.join(" ") === "plugin list --json") {
+    const pluginVersion = process.env.QUEST_SHIM_CLAUDE_PLUGIN_VERSION || "0.3.2";
+    process.stdout.write(JSON.stringify([
+      {
+        id: "quest@quest",
+        version: pluginVersion,
+        scope: "user",
+        enabled: true,
+        installPath: `${process.env.HOME || "/tmp"}/.claude/plugins/quest@quest`,
+      },
+    ]) + "\n");
+    process.exit(0);
+  }
+
+  const renderedArgs = args.map((arg) => JSON.stringify(arg)).join(" ");
+  const boundedArgs = renderedArgs.length > 200 ? `${renderedArgs.slice(0, 197)}...` : renderedArgs;
+  process.stderr.write(`unexpected claude shim call without scenario: ${boundedArgs}\n`);
+  process.exit(127);
 }

@@ -53,6 +53,14 @@ Then, inside a Claude Code session:
 /plugin install quest@quest
 ```
 
+Install Quest's project-scoped Claude agent templates and verify the local
+Claude setup with:
+
+```bash
+quest claude install-agents --scope project
+quest claude doctor
+```
+
 For local development against a checkout, point Claude Code at the repo directly
 — no marketplace needed:
 
@@ -129,6 +137,24 @@ quest lint --all
 quest list --ready
 ```
 
+By default, `quest init` also installs project-scoped native agent templates for
+both providers:
+
+- `.codex/agents/quest-executor.toml`
+- `.codex/agents/quest-reviewer.toml`
+- `.claude/agents/quest-executor.md`
+- `.claude/agents/quest-reviewer.md`
+
+Use `quest init --no-agents` when you only want the `.quests/` store. If an
+existing project agent template would be replaced, init fails before creating
+`.quests/`; inspect the conflicting files, run the explicit provider install
+command with `--force` only if you intend to replace them, then rerun
+`quest init`.
+
+Project-scoped agent templates install at the Git repository root. For a nested
+quest store, run `quest init --no-agents` in the nested directory and set
+`QUEST_DIR` for agents launched from elsewhere, or initialize from the repo root.
+
 Work one small quest **in-session** with the skill:
 
 ```
@@ -195,7 +221,7 @@ full base protocol lives in
 
 | Command | Purpose |
 |---|---|
-| `quest init` | Create a quest store (`.quests/`) in the current directory |
+| `quest init` | Create a quest store (`.quests/`) and install project-scoped Codex/Claude agent templates by default |
 | `quest create` | Create a new quest (the only way records are born) |
 | `quest list` | List quests (filter by status, parent, or readiness) |
 | `quest show` | Show a quest record in full |
@@ -208,7 +234,8 @@ full base protocol lives in
 | `quest amend` | Append a numbered protocol amendment (retro output) |
 | `quest protocol` | Print the loop protocol + this store's local amendments |
 | `quest runs` | Show headless runner activity (from `.quests/runs.ndjson`) |
-| `quest codex` | Validate Codex-native setup and install native agent templates |
+| `quest codex` | Validate Codex-native setup and install Codex native agent templates |
+| `quest claude` | Validate Claude-native setup and install Claude native agent templates |
 
 ## quest-run (headless runner)
 

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "core-cli-installers",
+    "outcome": "Refactor native agent installation into shared helpers, wire quest init through project-scoped Codex and Claude installs, and add quest claude commands.",
+    "writable_files": ["lib/cli.mjs", "lib/codex-native.mjs", "lib/help.mjs", "tests/cli.test.mjs", "tests/snapshots/*.txt"],
+    "read_context": ["agents/*.md", "agents/*.toml", "tests/shims/*"],
+    "verification": "npm test"
+  },
+  {
+    "id": "claude-shim",
+    "outcome": "Extend the Claude test shim with version and plugin inventory surfaces needed by quest claude doctor tests while preserving runner scenario behavior.",
+    "writable_files": ["tests/shims/claude"],
+    "read_context": ["tests/shims/codex", "tests/cli.test.mjs"],
+    "verification": "npm test"
+  },
+  {
+    "id": "docs-setup",
+    "outcome": "Document init-installed templates and Claude setup command parity in user-facing docs and setup skill.",
+    "writable_files": ["README.md", "skills/setup/SKILL.md", "CHANGELOG.md"],
+    "read_context": ["lib/help.mjs", "agents/*.md", "agents/*.toml"],
+    "verification": "npm run check:parity && npm run check:manifests"
+  }
+]

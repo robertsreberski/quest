@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+- Added Claude setup parity: `quest claude install-agents --scope project` and
+  `quest claude doctor` now mirror the existing Codex setup flow.
+
+### Changed
+- `quest init` now installs project-scoped Codex and Claude native agent
+  templates by default, `--no-agents` skips that install, and conflicting
+  project templates fail init before `.quests/` is created unless users
+  intentionally rerun the explicit provider install command with `--force`.
+
 ## [0.3.2] — 2026-07-08
 
 ### Changed
