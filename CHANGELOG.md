@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## [0.3.3] — 2026-07-08
+
+### Changed
+- `$quest:plan` now makes the planning parent session adopt
+  `$quest:orchestrate` by default after creating and linting quests, stopping
+  before dispatch only when the user explicitly asks for create-only or
+  no-dispatch behavior.
+
 ## [0.3.2] — 2026-07-08
 
 ### Added

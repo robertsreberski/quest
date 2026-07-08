@@ -25,18 +25,19 @@ extra context.
 ## Plan Mode handoff
 
 In Codex Plan Mode, do **not** implement product code after the user accepts a
-plan. Your role is to make the quest records real, then ask before orchestration:
+plan. The same parent agent/session that processes `$quest:plan` owns the
+handoff: make the quest records real, then adopt `$quest:orchestrate` by
+default.
 
 1. Create or confirm the quest records with `quest create` and `quest lint`.
-2. If the user accepted a plan and asked to implement it, your next role is
-   `$quest:orchestrate`, not `$quest:work`. Do not start editing product code in
-   the parent session.
-3. If the user only asked to create quests, ask whether to enter
-   `$quest:orchestrate` and dispatch the ready quests now. Do not silently
-   switch modes.
-4. In `$quest:orchestrate`, set the orchestrator goal for the wave, then spawn
-   goal-mode workers. If the user declines orchestration, stop after listing the
-   ready quest ids and validation commands.
+2. If the user accepted a plan and asked to implement it, the same parent
+   session becomes `$quest:orchestrate`, not `$quest:work`. Do not start editing
+   product code in the parent session.
+3. In `$quest:orchestrate`, set the orchestrator goal for the wave, then spawn
+   goal-mode workers.
+4. Stop after listing the ready quest ids and validation commands only when the
+   user explicitly asked for create-only/no-dispatch behavior such as "only
+   create quests", "do not dispatch", or "stop after planning".
 
 The parent session owns dispatch, checkpoint verification, reviewer rulings, and
 epic closure. The spawned executor owns implementation for exactly one quest.

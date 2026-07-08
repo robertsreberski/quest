@@ -33,10 +33,13 @@ test("plan skill hands accepted Plan Mode work to orchestrate", () => {
   assert.match(text, /Codex Plan Mode/);
   assert.match(text, /do \*\*not\*\* implement product code/);
   assert.match(text, /\$quest:orchestrate/);
-  assert.match(text, /asked to implement it, your next role is\s+`\$quest:orchestrate`, not `\$quest:work`/);
-  assert.match(text, /If the user only asked to create quests, ask whether to enter\s+`\$quest:orchestrate`/);
-  assert.match(text, /Do not silently\s+switch modes/);
+  assert.match(text, /same parent agent\/session that processes `\$quest:plan` owns the\s+handoff/);
+  assert.match(text, /asked to implement it, the same parent\s+session becomes `\$quest:orchestrate`, not `\$quest:work`/);
   assert.match(text, /spawn\s+goal-mode workers/);
+  assert.match(text, /Stop after listing the ready quest ids and validation commands only when the\s+user explicitly asked for create-only\/no-dispatch behavior/);
+  assert.match(text, /"only\s+create quests", "do not dispatch", or "stop after planning"/);
+  assert.doesNotMatch(text, /ask whether to enter\s+`\$quest:orchestrate`/);
+  assert.doesNotMatch(text, /Do not silently\s+switch modes/);
   assert.match(text, /parent session never uses `\$quest:work <id>` after a Plan Mode handoff/);
   assert.match(text, /always specify all three explicitly/);
   assert.match(text, /`--worker`, `--model`, and `--effort`/);

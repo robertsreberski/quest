@@ -22,8 +22,8 @@ actually read.
 ```
 you:    $quest:plan add dark mode to the settings page
 agent:  creates quest 12 — Objective, Done-when, Validation loop… (quest create)
-you:    $quest:orchestrate
-agent:  dispatches a worker on quest 12; it iterates: milestone → validate →
+agent:  becomes $quest:orchestrate and dispatches a worker on quest 12:
+        milestone → validate →
         commit → checkpoint. You review evidence, not vibes.
 ```
 
@@ -187,11 +187,11 @@ required:
 quest-run 12 --worker codex --codex-goal-mode require
 ```
 
-When a `$quest:plan` result is accepted from Plan Mode, the parent agent should
-stay the orchestrator: create/lint quest records if needed, set the wave goal,
-spawn subagents, verify checkpoints, and rule on reviewer findings. Product
-implementation belongs to the spawned executor for each quest, not to the parent
-session via `$quest:work`.
+When a `$quest:plan` result is accepted from Plan Mode, the parent agent
+automatically stays the orchestrator: create/lint quest records if needed, set
+the wave goal, spawn subagents, verify checkpoints, and rule on reviewer
+findings. Product implementation belongs to the spawned executor for each quest,
+not to the parent session via `$quest:work`.
 
 Each iteration ends by recording evidence — a checkpoint a fresh session can
 resume from:

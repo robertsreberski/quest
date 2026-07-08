@@ -54,7 +54,7 @@ test("unknown command exits 2 with a hint", async () => {
 
 test("--version reports the package version", async () => {
   assert.equal(await run(["--version"], io), 0);
-  assert.equal(out[0], "0.3.2");
+  assert.equal(out[0], "0.3.3");
 });
 
 test("codex install-agents installs native project agents idempotently", async () => {
@@ -219,7 +219,7 @@ test("claude doctor fails when installed plugin is stale", async () => {
   const result = JSON.parse(out[0]);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["plugin-version"].ok, false);
-  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.2/);
+  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.3/);
   assert.match(byName["plugin-version"].detail, /claude plugin update quest@quest/);
 });
 
@@ -232,8 +232,8 @@ test("codex doctor fails when quest on PATH is stale", async () => {
   const result = JSON.parse(out[0]);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["quest-cli-path"].ok, false);
-  assert.match(byName["quest-cli-path"].detail, /quest on PATH=0\.3\.0, package=0\.3\.2/);
-  assert.match(byName["quest-cli-path"].detail, /npm install -g quest-loop@0\.3\.2/);
+  assert.match(byName["quest-cli-path"].detail, /quest on PATH=0\.3\.0, package=0\.3\.3/);
+  assert.match(byName["quest-cli-path"].detail, /npm install -g quest-loop@0\.3\.3/);
 });
 
 test("codex doctor fails with upgrade hint when installed plugin is stale", async () => {
@@ -244,7 +244,7 @@ test("codex doctor fails with upgrade hint when installed plugin is stale", asyn
   const result = JSON.parse(out[0]);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["plugin-version"].ok, false);
-  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.2/);
+  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.3/);
   assert.match(byName["plugin-version"].detail, /codex plugin marketplace upgrade quest/);
 });
 

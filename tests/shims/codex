@@ -17,7 +17,7 @@ if (!scenarioPath) {
     process.exit(0);
   }
   if (argv.join(" ") === "plugin list --json") {
-    const pluginVersion = process.env.QUEST_SHIM_PLUGIN_VERSION || "0.3.2";
+    const pluginVersion = process.env.QUEST_SHIM_PLUGIN_VERSION || "0.3.3";
     process.stdout.write(JSON.stringify({
       installed: [
         { pluginId: "quest@quest", name: "quest", marketplaceName: "quest", version: pluginVersion, installed: true, enabled: true },
@@ -38,7 +38,7 @@ if (!scenarioPath) {
   if (argv.join(" ") === "debug prompt-input noop") {
     const roots = process.env.QUEST_SHIM_DUPLICATE_SKILL_ROOTS === "true"
       ? ["/tmp/checkout/quest", "/tmp/codex-plugin-cache/quest/quest/0.3.0"]
-      : ["/tmp/codex-plugin-cache/quest/quest/0.3.2"];
+      : ["/tmp/codex-plugin-cache/quest/quest/0.3.3"];
     const lines = ["### Available skills"];
     for (const root of roots) {
       lines.push(
