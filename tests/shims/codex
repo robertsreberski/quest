@@ -133,7 +133,7 @@ function quest(args) {
 
 const emit = (obj) => process.stdout.write(JSON.stringify(obj) + "\n");
 
-emit({ type: "thread.started", thread_id: scenario.thread_id || "codex-thread-1" });
+if (!scenario.omit_thread_id) emit({ type: "thread.started", thread_id: scenario.thread_id || "codex-thread-1" });
 
 if (spec.createGoal) {
   emit({ type: "item.completed", item: { type: "mcp_tool_call", server: "goal", tool: "create_goal", status: "completed" } });
