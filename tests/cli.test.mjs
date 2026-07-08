@@ -1,6 +1,6 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, delimiter } from "node:path";
 import { run } from "../lib/cli.mjs";
@@ -24,6 +24,10 @@ function writeQuestShim(dir, version) {
   writeFileSync(path, `#!/usr/bin/env sh\necho ${version}\n`);
   chmodSync(path, 0o755);
   return dir;
+}
+
+function readJsonLines(path) {
+  return readFileSync(path, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
 }
 
 function snap(name) {
@@ -54,7 +58,7 @@ test("unknown command exits 2 with a hint", async () => {
 
 test("--version reports the package version", async () => {
   assert.equal(await run(["--version"], io), 0);
-  assert.equal(out[0], "0.3.4");
+  assert.equal(out[0], "0.3.5");
 });
 
 test("codex install-agents installs native project agents idempotently", async () => {
@@ -86,6 +90,18 @@ test("codex install-agents installs native project agents idempotently", async (
   assert.match(err.join("\n"), /--force/);
 });
 
+test("codex install-agents replaces stale Quest agent templates without --force", async () => {
+  const agentsDir = join(cwd, ".codex", "agents");
+  const reviewer = join(agentsDir, "quest-reviewer.toml");
+  mkdirSync(agentsDir, { recursive: true });
+  writeFileSync(reviewer, "name = \"quest-reviewer\"\ndescription = \"old\"\n");
+
+  assert.equal(await run(["codex", "install-agents", "--scope", "project", "--json"], io), 0);
+  const result = JSON.parse(out[0]);
+  assert.ok(result.actions.some((a) => a.name === "quest-reviewer" && a.action === "replace"));
+  assert.match(readFileSync(reviewer, "utf8"), /Adversarial reviewer/);
+});
+
 test("claude install-agents installs native project agents idempotently", async () => {
   assert.equal(await run(["claude", "install-agents", "--scope", "project", "--dry-run", "--json"], io), 0);
   let result = JSON.parse(out[0]);
@@ -114,6 +130,18 @@ test("claude install-agents installs native project agents idempotently", async 
   err.length = 0;
   assert.equal(await run(["claude", "install-agents", "--scope", "project"], io), 2);
   assert.match(err.join("\n"), /--force/);
+});
+
+test("claude install-agents replaces stale Quest agent templates without --force", async () => {
+  const agentsDir = join(cwd, ".claude", "agents");
+  const reviewer = join(agentsDir, "quest-reviewer.md");
+  mkdirSync(agentsDir, { recursive: true });
+  writeFileSync(reviewer, "---\nname: quest-reviewer\ndescription: old\n---\n");
+
+  assert.equal(await run(["claude", "install-agents", "--scope", "project", "--json"], io), 0);
+  const result = JSON.parse(out[0]);
+  assert.ok(result.actions.some((a) => a.name === "quest-reviewer" && a.action === "replace"));
+  assert.match(readFileSync(reviewer, "utf8"), /Adversarial reviewer/);
 });
 
 test("codex install-agents --dry-run previews a conflict instead of erroring", async () => {
@@ -250,6 +278,94 @@ test("claude doctor verifies CLI/plugin and native-agent templates", async () =>
   assert.equal(byName["native-agents"].ok, true);
 });
 
+test("doctor --fix repairs missing and stale native agent templates for both providers", async () => {
+  const cases = [
+    ["codex", ".codex", "toml", "name = \"quest-reviewer\"\ndescription = \"old\"\n"],
+    ["claude", ".claude", "md", "---\nname: quest-reviewer\ndescription: old\n---\n"],
+  ];
+
+  for (const [provider, projectDir, extension, staleText] of cases) {
+    const providerCwd = mkdtempSync(join(tmpdir(), `quest-${provider}-fix-`));
+    const providerOut = [];
+    const providerErr = [];
+    const agentsDir = join(providerCwd, projectDir, "agents");
+    mkdirSync(agentsDir, { recursive: true });
+    writeFileSync(join(agentsDir, `quest-reviewer.${extension}`), staleText);
+    const providerIo = {
+      cwd: providerCwd,
+      env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}` },
+      stdout: (s) => providerOut.push(s),
+      stderr: (s) => providerErr.push(s),
+    };
+
+    assert.equal(await run([provider, "doctor", "--fix", "--json"], providerIo), 0);
+    const result = JSON.parse(providerOut[0]);
+    assert.equal(result.ok, true);
+    const nativeRepair = result.repairs.find((r) => r.name === "native-agents");
+    assert.ok(nativeRepair?.ok, `${provider} native repair should succeed`);
+    assert.ok(existsSync(join(agentsDir, `quest-executor.${extension}`)));
+    assert.match(readFileSync(join(agentsDir, `quest-reviewer.${extension}`), "utf8"), /quest-reviewer/);
+  }
+});
+
+test("codex doctor --fix bootstraps marketplace and repairs missing plugin state", async () => {
+  assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 0);
+  out.length = 0;
+  const state = join(cwd, "codex-repair-state.json");
+  const codexIo = {
+    ...io,
+    env: {
+      PATH: `${SHIMS}${delimiter}${process.env.PATH}`,
+      QUEST_SHIM_REPAIR_STATE: state,
+      QUEST_SHIM_PLUGIN_MISSING: "true",
+      QUEST_SHIM_MARKETPLACE_MISSING: "true",
+    },
+  };
+
+  assert.equal(await run(["codex", "doctor", "--fix", "--json"], codexIo), 0);
+  const result = JSON.parse(out[0]);
+  assert.equal(result.ok, true);
+  assert.deepEqual(
+    result.repairs.filter((r) => r.name.startsWith("plugin")).map((r) => r.name),
+    ["plugin-marketplace-add", "plugin-marketplace-upgrade", "plugin-add"],
+  );
+  assert.equal(JSON.parse(readFileSync(state, "utf8")).codexPluginVersion, "0.3.5");
+});
+
+test("claude doctor --fix repairs stale and missing plugin state", async () => {
+  assert.equal(await run(["claude", "install-agents", "--scope", "project"], io), 0);
+
+  out.length = 0;
+  const staleState = join(cwd, "claude-stale-repair-state.json");
+  let claudeIo = {
+    ...io,
+    env: {
+      PATH: `${SHIMS}${delimiter}${process.env.PATH}`,
+      QUEST_SHIM_REPAIR_STATE: staleState,
+      QUEST_SHIM_CLAUDE_PLUGIN_VERSION: "0.3.0",
+    },
+  };
+  assert.equal(await run(["claude", "doctor", "--fix", "--json"], claudeIo), 0);
+  let result = JSON.parse(out[0]);
+  assert.equal(result.ok, true);
+  assert.ok(result.repairs.some((r) => r.name === "plugin-update" && r.ok));
+
+  out.length = 0;
+  const missingState = join(cwd, "claude-missing-repair-state.json");
+  claudeIo = {
+    ...io,
+    env: {
+      PATH: `${SHIMS}${delimiter}${process.env.PATH}`,
+      QUEST_SHIM_REPAIR_STATE: missingState,
+      QUEST_SHIM_CLAUDE_PLUGIN_MISSING: "true",
+    },
+  };
+  assert.equal(await run(["claude", "doctor", "--fix", "--json"], claudeIo), 0);
+  result = JSON.parse(out[0]);
+  assert.equal(result.ok, true);
+  assert.ok(result.repairs.some((r) => r.name === "plugin-install" && r.ok));
+});
+
 test("claude doctor fails when installed plugin is stale", async () => {
   assert.equal(await run(["claude", "install-agents", "--scope", "project"], io), 0);
   out.length = 0;
@@ -258,7 +374,7 @@ test("claude doctor fails when installed plugin is stale", async () => {
   const result = JSON.parse(out[0]);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["plugin-version"].ok, false);
-  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.4/);
+  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.5/);
   assert.match(byName["plugin-version"].detail, /claude plugin update quest@quest/);
 });
 
@@ -271,8 +387,8 @@ test("codex doctor fails when quest on PATH is stale", async () => {
   const result = JSON.parse(out[0]);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["quest-cli-path"].ok, false);
-  assert.match(byName["quest-cli-path"].detail, /quest on PATH=0\.3\.0, package=0\.3\.4/);
-  assert.match(byName["quest-cli-path"].detail, /npm install -g quest-loop@0\.3\.4/);
+  assert.match(byName["quest-cli-path"].detail, /quest on PATH=0\.3\.0, package=0\.3\.5/);
+  assert.match(byName["quest-cli-path"].detail, /npm install -g quest-loop@0\.3\.5/);
 });
 
 test("codex doctor fails with upgrade hint when installed plugin is stale", async () => {
@@ -283,8 +399,55 @@ test("codex doctor fails with upgrade hint when installed plugin is stale", asyn
   const result = JSON.parse(out[0]);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["plugin-version"].ok, false);
-  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.4/);
+  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.5/);
   assert.match(byName["plugin-version"].detail, /codex plugin marketplace upgrade quest/);
+});
+
+test("open runs provider health gate before launching provider from the project root", async () => {
+  for (const provider of ["codex", "claude"]) {
+    const providerCwd = mkdtempSync(join(tmpdir(), `quest-${provider}-open-`));
+    const providerOut = [];
+    const providerErr = [];
+    const openLog = join(providerCwd, "open.jsonl");
+    const providerIo = {
+      cwd: providerCwd,
+      env: {
+        PATH: `${SHIMS}${delimiter}${process.env.PATH}`,
+        QUEST_SHIM_OPEN_LOG: openLog,
+      },
+      stdout: (s) => providerOut.push(s),
+      stderr: (s) => providerErr.push(s),
+    };
+    const args = provider === "codex"
+      ? [provider, "open", "--", "--model", "gpt-5.5", "hello"]
+      : [provider, "open", "--", "--model", "opus", "hello"];
+
+    assert.equal(await run(args, providerIo), 0);
+    const calls = readJsonLines(openLog);
+    assert.equal(calls.length, 1);
+    if (provider === "codex") {
+      assert.deepEqual(calls[0].argv, ["-C", providerCwd, "--model", "gpt-5.5", "hello"]);
+    } else {
+      assert.deepEqual(calls[0].argv, ["--model", "opus", "hello"]);
+      assert.equal(calls[0].cwd, realpathSync(providerCwd));
+    }
+  }
+});
+
+test("open does not launch when provider health remains red after fixes", async () => {
+  const openLog = join(cwd, "blocked-open.jsonl");
+  const staleDir = writeQuestShim(join(cwd, "stale-bin"), "0.3.0");
+  const codexIo = {
+    ...io,
+    env: {
+      PATH: `${staleDir}${delimiter}${SHIMS}${delimiter}${process.env.PATH}`,
+      QUEST_SHIM_OPEN_LOG: openLog,
+    },
+  };
+
+  assert.equal(await run(["codex", "open", "--", "hello"], codexIo), 1);
+  assert.equal(existsSync(openLog), false);
+  assert.match(out.join("\n"), /not launching/);
 });
 
 test("codex doctor fails when prompt-input exposes duplicate quest skill roots", async () => {

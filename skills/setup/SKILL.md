@@ -1,7 +1,7 @@
 ---
 name: setup
-description: Use when setting up, validating, updating, or troubleshooting Quest's native Codex or Claude plugin integration.
-argument-hint: "[doctor|install-agents|init]"
+description: Use when setting up, validating, updating, opening, or troubleshooting Quest's native Codex or Claude plugin integration.
+argument-hint: "[doctor|fix|open|install-agents|init]"
 ---
 
 # Set up Quest native agents
@@ -19,9 +19,10 @@ agent templates for both providers:
 - `.claude/agents/quest-reviewer.md`
 
 Use `quest init --no-agents` when you only want the quest store. If an existing
-project template conflicts, init fails before creating `.quests/`; inspect the
-file, run the explicit provider install command with `--force` only when you
-intend replacement, then rerun `quest init`.
+project template is stale and still identifies itself as Quest's agent, init
+replaces it. If another file conflicts, init fails before creating `.quests/`;
+inspect the file, run the explicit provider install command with `--force` only
+when you intend replacement, then rerun `quest init`.
 
 Project-scoped agent templates install at the Git repository root. For a nested
 quest store, use `quest init --no-agents` in the nested directory and set
@@ -32,7 +33,7 @@ quest store, use `quest init --no-agents` in the nested directory and set
 Check the installed Codex-facing state from the actual Codex surfaces:
 
 ```bash
-quest codex doctor
+quest codex doctor --fix
 ```
 
 This verifies the Codex CLI, `quest` binary on PATH, `multi_agent` and `goals`
@@ -45,7 +46,14 @@ use `quest-run --codex-goal-mode require` only as the headless fallback.
 Check the installed Claude-facing state from the actual Claude surfaces:
 
 ```bash
-quest claude doctor
+quest claude doctor --fix
+```
+
+Open an interactive provider only after the same repair/check gate passes:
+
+```bash
+quest codex open
+quest claude open
 ```
 
 ## Install Native Agents
@@ -70,9 +78,10 @@ quest claude install-agents --scope user
 ```
 
 If an existing file conflicts, inspect it first. Use `--force` only when you
-intend to replace that custom agent with Quest's bundled definition. Symlinked
-agent template files can be written through with `--force`; keep the provider
-agent directories themselves as real directories.
+intend to replace that custom agent with Quest's bundled definition. Stale
+Quest-owned templates are replaced without `--force`. Symlinked agent template
+files can be written through with `--force`; keep the provider agent directories
+themselves as real directories.
 
 ## Update Installed Plugin
 
@@ -82,7 +91,14 @@ refresh and reinstall, then start a new Codex thread:
 ```bash
 codex plugin marketplace upgrade quest
 codex plugin add quest@quest
-quest codex doctor
+quest codex doctor --fix
+```
+
+Claude updates through its plugin manager. After updating, restart Claude Code:
+
+```bash
+claude plugin update quest@quest
+quest claude doctor --fix
 ```
 
 If hooks changed, review/trust the updated hook definitions in Codex when

@@ -10,6 +10,26 @@ import { spawnSync } from "node:child_process";
 
 const scenarioPath = process.env.QUEST_SHIM_SCENARIO;
 const argv = process.argv.slice(2);
+const questMarketplaceSource = ["roberts", "reberski/quest"].join("");
+
+function readState() {
+  try {
+    return JSON.parse(readFileSync(process.env.QUEST_SHIM_REPAIR_STATE, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeState(next) {
+  if (!process.env.QUEST_SHIM_REPAIR_STATE) return;
+  writeFileSync(process.env.QUEST_SHIM_REPAIR_STATE, JSON.stringify({ ...readState(), ...next }));
+}
+
+function logOpenAndExit() {
+  if (!process.env.QUEST_SHIM_OPEN_LOG) return false;
+  appendFileSync(process.env.QUEST_SHIM_OPEN_LOG, JSON.stringify({ argv, cwd: process.cwd() }) + "\n");
+  process.exit(Number(process.env.QUEST_SHIM_OPEN_STATUS || 0));
+}
 
 if (!scenarioPath) {
   if (argv[0] === "--version") {
@@ -17,13 +37,38 @@ if (!scenarioPath) {
     process.exit(0);
   }
   if (argv.join(" ") === "plugin list --json") {
-    const pluginVersion = process.env.QUEST_SHIM_PLUGIN_VERSION || "0.3.4";
+    const state = readState();
+    const pluginMissing = process.env.QUEST_SHIM_PLUGIN_MISSING === "true" && !state.codexPluginInstalled;
+    const pluginVersion = state.codexPluginVersion || process.env.QUEST_SHIM_PLUGIN_VERSION || "0.3.5";
     process.stdout.write(JSON.stringify({
-      installed: [
+      installed: pluginMissing ? [] : [
         { pluginId: "quest@quest", name: "quest", marketplaceName: "quest", version: pluginVersion, installed: true, enabled: true },
       ],
       available: [],
     }) + "\n");
+    process.exit(0);
+  }
+  if (argv.join(" ") === "plugin marketplace list --json") {
+    const state = readState();
+    const marketplaceMissing = process.env.QUEST_SHIM_MARKETPLACE_MISSING === "true" && !state.codexMarketplaceAdded;
+    process.stdout.write(JSON.stringify({
+      marketplaces: marketplaceMissing ? [] : [{ name: "quest", root: "/tmp/codex-plugin-cache/quest" }],
+    }) + "\n");
+    process.exit(0);
+  }
+  if (argv.join(" ") === `plugin marketplace add ${questMarketplaceSource}`) {
+    writeState({ codexMarketplaceAdded: true });
+    process.stdout.write("Added marketplace quest\n");
+    process.exit(0);
+  }
+  if (argv.join(" ") === "plugin marketplace upgrade quest") {
+    writeState({ codexMarketplaceUpgraded: true });
+    process.stdout.write("Upgraded marketplace quest\n");
+    process.exit(0);
+  }
+  if (argv.join(" ") === "plugin add quest@quest") {
+    writeState({ codexPluginInstalled: true, codexPluginVersion: "0.3.5" });
+    process.stdout.write("Installed quest@quest\n");
     process.exit(0);
   }
   if (argv.join(" ") === "features list") {
@@ -38,7 +83,7 @@ if (!scenarioPath) {
   if (argv.join(" ") === "debug prompt-input noop") {
     const roots = process.env.QUEST_SHIM_DUPLICATE_SKILL_ROOTS === "true"
       ? ["/tmp/checkout/quest", "/tmp/codex-plugin-cache/quest/quest/0.3.0"]
-      : ["/tmp/codex-plugin-cache/quest/quest/0.3.4"];
+      : ["/tmp/codex-plugin-cache/quest/quest/0.3.5"];
     const lines = ["### Available skills"];
     for (const root of roots) {
       lines.push(
@@ -63,6 +108,7 @@ if (!scenarioPath) {
     ]) + "\n");
     process.exit(0);
   }
+  logOpenAndExit();
   process.stderr.write(`unexpected codex shim call without scenario: ${argv.join(" ")}\n`);
   process.exit(127);
 }

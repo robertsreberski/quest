@@ -72,14 +72,28 @@ function runNormal() {
 }
 
 function runWithoutScenario(args) {
+  const readState = () => {
+    try {
+      return JSON.parse(readFileSync(process.env.QUEST_SHIM_REPAIR_STATE, "utf8"));
+    } catch {
+      return {};
+    }
+  };
+  const writeState = (next) => {
+    if (!process.env.QUEST_SHIM_REPAIR_STATE) return;
+    writeFileSync(process.env.QUEST_SHIM_REPAIR_STATE, JSON.stringify({ ...readState(), ...next }));
+  };
+
   if (args.length === 1 && args[0] === "--version") {
     process.stdout.write("2.1.204 (Claude Code)\n");
     process.exit(0);
   }
 
   if (args.join(" ") === "plugin list --json") {
-    const pluginVersion = process.env.QUEST_SHIM_CLAUDE_PLUGIN_VERSION || "0.3.4";
-    process.stdout.write(JSON.stringify([
+    const state = readState();
+    const pluginMissing = process.env.QUEST_SHIM_CLAUDE_PLUGIN_MISSING === "true" && !state.claudePluginInstalled;
+    const pluginVersion = state.claudePluginVersion || process.env.QUEST_SHIM_CLAUDE_PLUGIN_VERSION || "0.3.5";
+    process.stdout.write(JSON.stringify(pluginMissing ? [] : [
       {
         id: "quest@quest",
         version: pluginVersion,
@@ -89,6 +103,23 @@ function runWithoutScenario(args) {
       },
     ]) + "\n");
     process.exit(0);
+  }
+
+  if (args.join(" ") === "plugin update quest@quest") {
+    writeState({ claudePluginInstalled: true, claudePluginVersion: "0.3.5" });
+    process.stdout.write("Updated quest@quest\n");
+    process.exit(0);
+  }
+
+  if (args.join(" ") === "plugin install quest@quest") {
+    writeState({ claudePluginInstalled: true, claudePluginVersion: "0.3.5" });
+    process.stdout.write("Installed quest@quest\n");
+    process.exit(0);
+  }
+
+  if (process.env.QUEST_SHIM_OPEN_LOG) {
+    appendFileSync(process.env.QUEST_SHIM_OPEN_LOG, JSON.stringify({ argv: args, cwd: process.cwd() }) + "\n");
+    process.exit(Number(process.env.QUEST_SHIM_OPEN_STATUS || 0));
   }
 
   const renderedArgs = args.map((arg) => JSON.stringify(arg)).join(" ");

@@ -57,8 +57,8 @@ Install Quest's project-scoped Claude agent templates and verify the local
 Claude setup with:
 
 ```bash
-quest claude install-agents --scope project
-quest claude doctor
+quest claude doctor --fix
+quest claude open
 ```
 
 For local development against a checkout, point Claude Code at the repo directly
@@ -84,16 +84,19 @@ Verify the install with:
 
 ```bash
 codex plugin list --marketplace quest
-quest codex install-agents --scope project
-quest codex doctor
+quest codex doctor --fix
+quest codex open
 codex debug prompt-input "noop"
 ```
 
-`quest codex doctor` checks the installed plugin version, Codex `multi_agent`
-support, hook parser, neutral skill roots, and installed native-agent templates.
-`codex debug prompt-input "noop"` should not print any hook parse warnings.
+`quest codex doctor --fix` and `quest claude doctor --fix` install or refresh
+Quest-owned native-agent templates and repair the provider plugin install/version
+when the provider CLI supports it, then rerun doctor. `quest codex open` and
+`quest claude open` run the same health gate before launching the interactive
+provider. `codex debug prompt-input "noop"` should not print any hook parse
+warnings.
 
-#### Updating the Codex plugin
+#### Updating provider plugins
 
 Codex installs plugins from a marketplace snapshot. Pulling this Git repo or
 publishing a new tag is not enough to update the already-installed plugin cache.
@@ -103,10 +106,18 @@ Refresh the marketplace snapshot, then reinstall the plugin from it:
 codex plugin marketplace upgrade quest
 codex plugin add quest@quest
 codex plugin list --marketplace quest
-quest codex doctor
+quest codex doctor --fix
 ```
 
-Then start a new Codex thread. If the update contains hook changes, re-run:
+Claude updates through its plugin manager:
+
+```bash
+claude plugin update quest@quest
+quest claude doctor --fix
+```
+
+Then start a new provider session. If the Codex update contains hook changes,
+re-run:
 
 ```bash
 codex debug prompt-input "noop"
@@ -145,8 +156,9 @@ both providers:
 - `.claude/agents/quest-executor.md`
 - `.claude/agents/quest-reviewer.md`
 
-Use `quest init --no-agents` when you only want the `.quests/` store. If an
-existing project agent template would be replaced, init fails before creating
+Use `quest init --no-agents` when you only want the `.quests/` store. Stale
+Quest-owned agent templates are replaced automatically. If an existing file is
+not recognizable as a Quest agent template, init fails before creating
 `.quests/`; inspect the conflicting files, run the explicit provider install
 command with `--force` only if you intend to replace them, then rerun
 `quest init`.
@@ -238,8 +250,8 @@ full base protocol lives in
 | `quest amend` | Append a numbered protocol amendment (retro output) |
 | `quest protocol` | Print the loop protocol + this store's local amendments |
 | `quest runs` | Show headless runner activity (from `.quests/runs.ndjson`) |
-| `quest codex` | Validate Codex-native setup and install Codex native agent templates |
-| `quest claude` | Validate Claude-native setup and install Claude native agent templates |
+| `quest codex` | Validate, repair, install, or open Codex-native setup |
+| `quest claude` | Validate, repair, install, or open Claude-native setup |
 
 ## quest-run (headless runner)
 

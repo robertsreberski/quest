@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## [0.3.5] — 2026-07-08
+
+### Added
+- `quest codex doctor --fix` and `quest claude doctor --fix` now repair
+  Quest-owned native-agent templates and provider plugin install/version state,
+  then rerun the same doctor checks.
+- `quest codex open` and `quest claude open` now run the provider health gate
+  before launching the interactive provider from the project root.
+
+### Changed
+- Stale Quest agent templates are replaced without `--force`; unrelated custom
+  files still require explicit replacement.
+
 ## [0.3.4] — 2026-07-08
 
 ### Changed
