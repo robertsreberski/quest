@@ -1,0 +1,7 @@
+interface:
+  display_name: "Quest Setup"
+  short_description: "Validate and install Quest's native Codex integration"
+  default_prompt: "Use $quest:setup to validate Quest's Codex plugin install."
+
+policy:
+  allow_implicit_invocation: false

@@ -35,5 +35,5 @@ quest protocol
 - A `complete` checkpoint cites backticked commands in `validation_summary`
   and enumerates every Done-when item as Done / Blocked / Cancelled.
 
-**Next:** plan with `/quest:plan`, execute with `/quest:work`, drive with
-`/quest:orchestrate`, improve with `/quest:retro`.
+**Next:** plan with `$quest:plan`, execute with `$quest:work`, drive with
+`$quest:orchestrate`, improve with `$quest:retro`.

@@ -18,6 +18,7 @@ Commands:
   quest amend       Append a numbered protocol amendment (retro output)
   quest protocol    Print the loop protocol + this store's local amendments
   quest runs        Show headless runner activity (from .quests/runs.ndjson)
+  quest codex       Inspect or install Quest's native Codex integration
 
 Run `quest <command> --help` for flags and a copy-pasteable example.
 Headless workers: see `quest-run --help`.

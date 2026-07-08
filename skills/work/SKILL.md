@@ -35,7 +35,7 @@ session can resume from.
      --summary "M2 done — <one line per milestone touched>" \
      --validation "\`npm test\` → 42 passed, 0 failed"
    ```
-6. **Check stop conditions** (see `/quest:protocol` for the full rules):
+6. **Check stop conditions** (see `$quest:protocol` for the full rules):
    - All Done-when items hold with evidence → final checkpoint with
      `--status complete`, whose `--note` enumerates EVERY Done-when item as
      Done / Blocked / Cancelled with its evidence.
@@ -69,5 +69,5 @@ quest show 12
 ```
 
 **Next:** finished or blocked → the orchestrator (or human) rules on your
-checkpoint — see `/quest:orchestrate`. Learned something protocol-worthy →
-mention it so `/quest:retro` can turn it into an amendment.
+checkpoint — see `$quest:orchestrate`. Learned something protocol-worthy →
+mention it so `$quest:retro` can turn it into an amendment.

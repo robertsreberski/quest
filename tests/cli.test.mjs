@@ -1,11 +1,12 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { run } from "../lib/cli.mjs";
 
 const SNAP = new URL("./snapshots/", import.meta.url).pathname;
+const SHIMS = new URL("./shims/", import.meta.url).pathname;
 
 let cwd, out, err, io;
 beforeEach(() => {
@@ -41,6 +42,54 @@ test("unknown command exits 2 with a hint", async () => {
   assert.equal(await run(["frobnicate"], io), 2);
   assert.match(err.join("\n"), /unknown command/);
   assert.match(err.join("\n"), /hint:/);
+});
+
+test("--version reports the package version", async () => {
+  assert.equal(await run(["--version"], io), 0);
+  assert.equal(out[0], "0.3.0");
+});
+
+test("codex install-agents installs native project agents idempotently", async () => {
+  assert.equal(await run(["codex", "install-agents", "--scope", "project", "--dry-run", "--json"], io), 0);
+  let result = JSON.parse(out[0]);
+  assert.equal(result.dry_run, true);
+  assert.equal(result.actions.length, 2);
+  assert.ok(result.actions.every((a) => a.action === "create"));
+  assert.equal(existsSync(join(cwd, ".codex", "agents", "quest-executor.toml")), false);
+
+  out.length = 0;
+  assert.equal(await run(["codex", "install-agents", "--scope", "project", "--json"], io), 0);
+  result = JSON.parse(out[0]);
+  assert.equal(result.ok, true);
+  const executor = join(cwd, ".codex", "agents", "quest-executor.toml");
+  const reviewer = join(cwd, ".codex", "agents", "quest-reviewer.toml");
+  assert.ok(existsSync(executor));
+  assert.ok(existsSync(reviewer));
+  assert.match(readFileSync(executor, "utf8"), /name = "quest-executor"/);
+
+  out.length = 0;
+  assert.equal(await run(["codex", "install-agents", "--scope", "project", "--json"], io), 0);
+  result = JSON.parse(out[0]);
+  assert.ok(result.actions.every((a) => a.action === "unchanged"));
+
+  writeFileSync(reviewer, "name = \"custom-reviewer\"\n");
+  err.length = 0;
+  assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 2);
+  assert.match(err.join("\n"), /--force/);
+});
+
+test("codex doctor verifies CLI/plugin/hooks/skills/agents from native surfaces", async () => {
+  assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 0);
+  out.length = 0;
+  const codexIo = { ...io, env: { PATH: `${SHIMS}:${process.env.PATH}` } };
+  assert.equal(await run(["codex", "doctor", "--json"], codexIo), 0);
+  const result = JSON.parse(out[0]);
+  assert.equal(result.ok, true);
+  const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
+  assert.equal(byName["version-sync"].ok, true);
+  assert.equal(byName["plugin-installed"].ok, true);
+  assert.equal(byName["single-neutral-skill-root"].ok, true);
+  assert.equal(byName["native-agents"].ok, true);
 });
 
 test("commands without a store exit 3 with init hint", async () => {

@@ -1,7 +1,7 @@
 # The quest loop protocol
 
 This is the base protocol every quest execution follows. Local amendments (mined
-from retros, see `/quest:retro`) live in `.quests/amendments.md` and extend this
+from retros, see `$quest:retro`) live in `.quests/amendments.md` and extend this
 document — read both. `quest protocol` prints them together.
 
 ## Vocabulary
@@ -85,7 +85,7 @@ When reviewing a finished iteration or run, the orchestrator rules one of:
 - **accept** — the checkpoint's evidence actually satisfies the Done-when items
   it claims (quote the commands; never accept adjectives).
 - **iterate-with-feedback** — send the specific gap back to the executor.
-- **split** — the quest was bigger than it looked; decompose via `/quest:plan`.
+- **split** — the quest was bigger than it looked; decompose via `$quest:plan`.
 - **escalate-to-human** — human-only decisions are surfaced verbatim, never
   guessed.
 

@@ -85,6 +85,17 @@ function commandOf(input) {
 // content (plain prose) and tool_result blocks (echoed output/file contents) are
 // ignored. Matches `quest start <id>` or `quest checkpoint <id>` and returns the id.
 function markerIdInEntry(entry) {
+  const item = entry && typeof entry === "object" ? entry.item : null;
+  if (item && typeof item === "object" && item.type === "command_execution" && typeof item.command === "string") {
+    const m = MARKER.exec(item.command);
+    if (m) return Number(m[2]);
+  }
+  const msgItem = entry && typeof entry === "object" && entry.msg && typeof entry.msg === "object" ? entry.msg.item : null;
+  if (msgItem && typeof msgItem === "object" && msgItem.type === "command_execution" && typeof msgItem.command === "string") {
+    const m = MARKER.exec(msgItem.command);
+    if (m) return Number(m[2]);
+  }
+
   const msg = entry && typeof entry === "object" ? entry.message : null;
   const content = msg && typeof msg === "object" ? msg.content : null;
   if (!Array.isArray(content)) return null; // string content is prose, never an invocation

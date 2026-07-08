@@ -19,6 +19,7 @@ const SKILL_PROSE_TRANSCRIPT = new URL("./fixtures/skill-prose-transcript.jsonl"
 const MULTI_INVOCATION_TRANSCRIPT = new URL("./fixtures/multi-invocation-transcript.jsonl", import.meta.url).pathname;
 const READONLY_REVIEWER_TRANSCRIPT = new URL("./fixtures/readonly-reviewer-transcript.jsonl", import.meta.url).pathname;
 const CHECKPOINT_FIRST_TRANSCRIPT = new URL("./fixtures/checkpoint-first-transcript.jsonl", import.meta.url).pathname;
+const CODEX_COMMAND_TRANSCRIPT = new URL("./fixtures/codex-command-execution-transcript.jsonl", import.meta.url).pathname;
 
 // Clean env: strip QUEST_DIR/QUEST_BACKEND so store discovery is driven purely by
 // the payload cwd, matching how the hook runs inside a real session.
@@ -157,6 +158,18 @@ test("SubagentStop: a checkpoint invocation alone keys executor detection (resum
     decision.reason,
     "quest 1: record a checkpoint via `quest checkpoint 1` before stopping (protocol: no stop without a checkpoint)",
     "the `quest checkpoint 1` invocation keys detection even without a `quest start`",
+  );
+});
+
+test("SubagentStop: Codex command_execution entries key executor detection", async () => {
+  await seedQuest(); // quest 1, in_progress, zero checkpoints
+  const res = fire(SUBAGENT_STOP, stopPayload(CODEX_COMMAND_TRANSCRIPT));
+  assert.equal(res.status, 0);
+  const decision = JSON.parse(res.stdout.trim());
+  assert.equal(decision.decision, "block");
+  assert.equal(
+    decision.reason,
+    "quest 1: record a checkpoint via `quest checkpoint 1` before stopping (protocol: no stop without a checkpoint)",
   );
 });
 

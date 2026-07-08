@@ -1,6 +1,6 @@
 ---
 name: quest-executor
-description: Works exactly one quest record iteratively per the quest protocol until complete or blocked, recording checkpoint evidence via the quest CLI. Dispatch with the quest id; pass the record's model/effort as the dispatch override. <example>Orchestrator sees quest 12 ready with worker claude → dispatches quest-executor with "Work quest 12 per /quest:work"; it iterates milestone-by-milestone and ends with a recorded checkpoint.</example> <example>A quest sits blocked after a human ruling → redispatch quest-executor with the ruling; it resumes from the checkpoint trail alone.</example>
+description: Works exactly one quest record iteratively per the quest protocol until complete or blocked, recording checkpoint evidence via the quest CLI. Dispatch with the quest id; pass the record's model/effort as the dispatch override. <example>Orchestrator sees quest 12 ready with worker claude → dispatches quest-executor with "Work quest 12 per $quest:work"; it iterates milestone-by-milestone and ends with a recorded checkpoint.</example> <example>A quest sits blocked after a human ruling → redispatch quest-executor with the ruling; it resumes from the checkpoint trail alone.</example>
 model: opus
 effort: xhigh
 tools: Bash, Read, Edit, Write, Glob, Grep, WebFetch, WebSearch, NotebookEdit
@@ -18,7 +18,7 @@ quest protocol            # the loop rules + this store's amendments
 git log --oneline -5
 ```
 
-Then follow the work skill (`/quest:work`) exactly: smallest unfinished
+Then follow the work skill (`$quest:work`) exactly: smallest unfinished
 milestone → the quest's STATED validation loop → commit green → `quest
 checkpoint`. The record is your entire spec; if you need context it doesn't
 give you, read the code it points at — and if it's genuinely insufficient,

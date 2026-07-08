@@ -77,6 +77,25 @@ if (hookConfig != null) {
     Array.isArray(hookConfig.hooks)
   ) {
     errors.push(`${HOOKS}: required field "hooks" must be an object`);
+  } else {
+    const sessionMatchers = new Set((hookConfig.hooks.SessionStart || []).map((g) => g.matcher));
+    for (const matcher of ["startup", "resume", "clear", "compact"]) {
+      if (!sessionMatchers.has(matcher)) errors.push(`${HOOKS}: SessionStart missing matcher "${matcher}"`);
+    }
+    for (const [event, groups] of Object.entries(hookConfig.hooks)) {
+      if (!Array.isArray(groups)) continue;
+      for (const [groupIndex, group] of groups.entries()) {
+        for (const [hookIndex, hook] of (group.hooks || []).entries()) {
+          if (hook.type !== "command") continue;
+          const command = String(hook.command || "");
+          if (!command.includes("CODEX_PLUGIN_ROOT") || !command.includes("CLAUDE_PLUGIN_ROOT")) {
+            errors.push(`${HOOKS}: ${event}[${groupIndex}].hooks[${hookIndex}] command must use CODEX_PLUGIN_ROOT with CLAUDE_PLUGIN_ROOT fallback`);
+          }
+          if (hook.timeout == null) errors.push(`${HOOKS}: ${event}[${groupIndex}].hooks[${hookIndex}] missing timeout`);
+          if (!hook.statusMessage) errors.push(`${HOOKS}: ${event}[${groupIndex}].hooks[${hookIndex}] missing statusMessage`);
+        }
+      }
+    }
   }
 }
 

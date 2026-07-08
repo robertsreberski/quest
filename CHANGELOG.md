@@ -4,6 +4,39 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.3.0] — 2026-07-08
+
+### Added
+- `$quest:setup` skill plus `quest codex doctor` for native Codex validation:
+  checks Codex CLI availability, installed `quest@quest` version, hook parser
+  health, neutral-directory Quest skill roots, and native `quest-executor` /
+  `quest-reviewer` custom-agent availability.
+- `quest codex install-agents --scope project|user` installs Quest's bundled
+  agent TOML files into Codex's native `.codex/agents` or `~/.codex/agents`
+  locations. The command is idempotent, supports `--dry-run`, and requires
+  `--force` before replacing different existing agent files.
+- `quest --version` reports the package version.
+- `quest-run --codex-goal-mode auto|require|off` controls how headless Codex
+  runs treat goal tools. `auto` is the default and uses documented
+  `codex exec --json --output-schema` output as the contract; `require` blocks
+  honestly when `create_goal` is not observed; `off` avoids goal-tool prompts.
+
+### Changed
+- Codex is now the first-class plugin path in docs and skill UI metadata:
+  examples use `$quest:*`, the Codex setup flow runs `quest codex doctor`, and
+  `package.json`, `.claude-plugin/plugin.json`, and `.codex-plugin/plugin.json`
+  now share the same version.
+- `codex exec resume` invocations no longer pass unsupported `-C`; the runner
+  relies on the child process working directory and original Codex session.
+- Bundled hooks now prefer `CODEX_PLUGIN_ROOT` with a `CLAUDE_PLUGIN_ROOT`
+  fallback, include a `resume` SessionStart matcher, status messages, timeouts,
+  and Windows command variants.
+
+### Fixed
+- SubagentStop hook now recognizes Codex JSONL `command_execution` entries in
+  addition to Claude-style `tool_use.input.command` blocks, while preserving the
+  mutating-verb-only detection rule.
+
 ## [0.2.0] — 2026-07-08
 
 ### Added
@@ -26,7 +59,7 @@ All notable changes to this project are documented here. The format follows
   longer wedges its epic), in both the local and GitHub backends. `quest-run
   --ready` additionally refuses to auto-dispatch a quest that has children even
   once they are all terminal, logging an actionable "is an epic — close it inline
-  per /quest:orchestrate" line; a direct `quest-run <id>` on an epic stays
+  per $quest:orchestrate" line; a direct `quest-run <id>` on an epic stays
   allowed. The orchestrate skill gains a "Closing an epic" procedure and the plan
   skill documents that epic contracts are integration-level only.
 

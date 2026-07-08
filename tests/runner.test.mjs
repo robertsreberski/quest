@@ -183,7 +183,23 @@ test("notify failure is isolated — warns but never changes the exit code", asy
   assert.match(err.join("\n"), /notify command failed/);
 });
 
-test("codex: narrated create_goal triggers exactly one corrective resume", async () => {
+test("codex: default goal auto mode does not require create_goal", async () => {
+  await createQuest("codex");
+  writeScenario({
+    initial: { createGoal: false, checkpoint: "complete" },
+    thread_id: "th-auto",
+  });
+  const { io } = runnerIo();
+
+  const code = await runnerRun(["1"], io);
+  assert.equal(code, 0);
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "complete");
+
+  const calls = readFileSync(scenarioPath + ".codex.calls.jsonl", "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  assert.equal(calls.length, 1, "auto mode should not corrective-resume solely because create_goal is unavailable");
+});
+
+test("codex: require goal mode triggers exactly one corrective resume", async () => {
   await createQuest("codex");
   writeScenario({
     initial: { createGoal: false },
@@ -192,7 +208,7 @@ test("codex: narrated create_goal triggers exactly one corrective resume", async
   });
   const { io } = runnerIo();
 
-  const code = await runnerRun(["1"], io);
+  const code = await runnerRun(["1", "--codex-goal-mode", "require"], io);
   assert.equal(code, 0);
   assert.equal(local.loadQuest(storeDir, 1).front.status, "complete");
 
@@ -202,6 +218,21 @@ test("codex: narrated create_goal triggers exactly one corrective resume", async
   assert.equal(calls[1].isResume, true);
   assert.match(calls[1].argv.join(" "), /narrated it instead/);
   assert.match(calls[1].argv.join(" "), /create_goal tool now/);
+  assert.equal(calls[1].argv.includes("-C"), false, "codex exec resume does not support -C/--cd");
+});
+
+test("codex: require goal mode blocks when goal tools remain unavailable", async () => {
+  await createQuest("codex");
+  writeScenario({
+    initial: { createGoal: false },
+    resume: { createGoal: false },
+  });
+  const { io } = runnerIo();
+
+  const code = await runnerRun(["1", "--codex-goal-mode", "require"], io);
+  assert.equal(code, 10);
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "blocked");
+  assert.match(recordText(), /goal tools were required/);
 });
 
 test("codex: default sandbox is workspace-write in the built invocation", async () => {
@@ -261,6 +292,15 @@ test("codex: --codex-sandbox rejects an illegal value with a usage error (exit 2
   assert.equal(code, 2, "an illegal sandbox mode is a usage error");
   assert.match(err.join("\n"), /--codex-sandbox must be one of/);
   // No silent escalation and nothing spawned.
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "todo");
+});
+
+test("codex: --codex-goal-mode rejects an illegal value with a usage error (exit 2)", async () => {
+  await createQuest("codex");
+  const { io, err } = runnerIo();
+  const code = await runnerRun(["1", "--codex-goal-mode", "required-ish", "--dry-run", "--json"], io);
+  assert.equal(code, 2);
+  assert.match(err.join("\n"), /--codex-goal-mode must be one of/);
   assert.equal(local.loadQuest(storeDir, 1).front.status, "todo");
 });
 

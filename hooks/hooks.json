@@ -4,26 +4,62 @@
       {
         "matcher": "startup",
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.mjs\"" }
+          {
+            "type": "command",
+            "command": "root=\"${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; [ -n \"$root\" ] && node \"$root/hooks/session-start.mjs\"",
+            "commandWindows": "if defined CODEX_PLUGIN_ROOT (node \"%CODEX_PLUGIN_ROOT%\\hooks\\session-start.mjs\") else if defined CLAUDE_PLUGIN_ROOT (node \"%CLAUDE_PLUGIN_ROOT%\\hooks\\session-start.mjs\")",
+            "timeout": 10,
+            "statusMessage": "Loading quest state"
+          }
+        ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "root=\"${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; [ -n \"$root\" ] && node \"$root/hooks/session-start.mjs\"",
+            "commandWindows": "if defined CODEX_PLUGIN_ROOT (node \"%CODEX_PLUGIN_ROOT%\\hooks\\session-start.mjs\") else if defined CLAUDE_PLUGIN_ROOT (node \"%CLAUDE_PLUGIN_ROOT%\\hooks\\session-start.mjs\")",
+            "timeout": 10,
+            "statusMessage": "Loading quest state"
+          }
         ]
       },
       {
         "matcher": "clear",
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.mjs\"" }
+          {
+            "type": "command",
+            "command": "root=\"${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; [ -n \"$root\" ] && node \"$root/hooks/session-start.mjs\"",
+            "commandWindows": "if defined CODEX_PLUGIN_ROOT (node \"%CODEX_PLUGIN_ROOT%\\hooks\\session-start.mjs\") else if defined CLAUDE_PLUGIN_ROOT (node \"%CLAUDE_PLUGIN_ROOT%\\hooks\\session-start.mjs\")",
+            "timeout": 10,
+            "statusMessage": "Loading quest state"
+          }
         ]
       },
       {
         "matcher": "compact",
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.mjs\"" }
+          {
+            "type": "command",
+            "command": "root=\"${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; [ -n \"$root\" ] && node \"$root/hooks/session-start.mjs\"",
+            "commandWindows": "if defined CODEX_PLUGIN_ROOT (node \"%CODEX_PLUGIN_ROOT%\\hooks\\session-start.mjs\") else if defined CLAUDE_PLUGIN_ROOT (node \"%CLAUDE_PLUGIN_ROOT%\\hooks\\session-start.mjs\")",
+            "timeout": 10,
+            "statusMessage": "Loading quest state"
+          }
         ]
       }
     ],
     "SubagentStop": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/subagent-stop.mjs\"" }
+          {
+            "type": "command",
+            "command": "root=\"${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; [ -n \"$root\" ] && node \"$root/hooks/subagent-stop.mjs\"",
+            "commandWindows": "if defined CODEX_PLUGIN_ROOT (node \"%CODEX_PLUGIN_ROOT%\\hooks\\subagent-stop.mjs\") else if defined CLAUDE_PLUGIN_ROOT (node \"%CLAUDE_PLUGIN_ROOT%\\hooks\\subagent-stop.mjs\")",
+            "timeout": 10,
+            "statusMessage": "Checking quest checkpoint"
+          }
         ]
       }
     ]

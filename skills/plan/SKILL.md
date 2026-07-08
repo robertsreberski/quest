@@ -33,7 +33,7 @@ Done-when. Its milestones must **not mirror the children 1:1** — the children
 *are* the decomposition, so re-listing them in the epic body earns no worker and
 wastes review. Give the epic an objective, integration Done-when, and the
 validation loop the orchestrator runs to close it inline (it is never
-dispatched — see `/quest:orchestrate` "Closing an epic").
+dispatched — see `$quest:orchestrate` "Closing an epic").
 
 ## Author the contract
 
@@ -74,5 +74,5 @@ quest create --title "Add dark mode to settings" \
 quest lint 12   # always, before dispatch
 ```
 
-**Next:** dispatch with `/quest:orchestrate` (or work it yourself via
-`/quest:work <id>`). Rules and vocabulary: `/quest:protocol`.
+**Next:** dispatch with `$quest:orchestrate` (or work it yourself via
+`$quest:work <id>`). Rules and vocabulary: `$quest:protocol`.

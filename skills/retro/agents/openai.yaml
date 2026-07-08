@@ -1,4 +1,4 @@
 interface:
   display_name: "Quest Retro"
   short_description: "Mine finished quest traces into numbered protocol amendments"
-  default_prompt: "Use $retro to turn this wave's traces into protocol amendments."
+  default_prompt: "Use $quest:retro to turn this wave's traces into protocol amendments."

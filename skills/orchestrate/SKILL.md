@@ -22,11 +22,14 @@ trails, and escalations only where a human ruling is genuinely needed.
    quest runs --active         # headless runners that outlived prior sessions
    ```
 2. **Dispatch** each ready quest per its record:
-   - `worker: claude` → spawn the `quest-executor` subagent with the record's
-     `model`/`effort` as the dispatch override; prompt = "Work quest <id> per
-     /quest:work."
-   - `worker: codex`, parallel batches, or anything long-running → run
-     `quest-run <id>` in **background Bash** and keep working; you'll be
+   - In Codex, prefer the native `quest-executor` custom agent for an
+     interactive single quest; prompt = "Work quest <id> per $quest:work." If
+     the agent is missing, run `quest codex install-agents --scope project` (or
+     `$quest:setup`) before dispatching.
+   - In Claude Code, spawn the `quest-executor` subagent with the record's
+     `model`/`effort` as the dispatch override and the same prompt.
+   - For headless Codex/Claude work, parallel batches, or anything long-running,
+     run `quest-run <id>` in **background Bash** and keep working; you'll be
      notified when it exits. Parallel file-disjoint quests:
      `quest-run --ready --parallel 3` (add `--isolate worktree` when they touch
      the same files).
@@ -42,12 +45,12 @@ trails, and escalations only where a human ruling is genuinely needed.
      Done-when items.
    - **iterate-with-feedback** — send the specific gap back (continue the
      subagent, or `quest-run <id> --continue-session`).
-   - **split** — bigger than it looked → `/quest:plan` to decompose; cancel or
+   - **split** — bigger than it looked → `$quest:plan` to decompose; cancel or
      re-parent the original honestly.
    - **escalate-to-human** — surface human-only decisions verbatim. Never
      guess a ruling the human should make.
 6. **Wave done?** When `quest list --ready` empties and nothing is in flight:
-   run `/quest:retro` before starting the next wave.
+   run `$quest:retro` before starting the next wave.
 
 ## Closing an epic
 
@@ -102,10 +105,12 @@ if so, reopen the epic too. `cancelled` is fully terminal — file a new quest.
 For an unattended wave, pin your own session to the outcome with a native goal:
 
 ```
-/goal every quest in this wave shows complete or blocked in `quest list --json` output
+every quest in this wave shows complete or blocked in `quest list --json` output
 ```
 
-The harness then keeps you cycling until the wave is genuinely done.
+In Codex, use the native goal tool when available; in Claude Code, use
+`/goal <condition>`. The harness then keeps you cycling until the wave is
+genuinely done.
 
 ## Worked example
 
@@ -118,5 +123,5 @@ quest show 12 --json          # new checkpoint? quest_status? evidence?
 # reviewer on 12's diff → findings dispositioned → accept
 ```
 
-**Next:** contracts weak? `/quest:plan` to fix them first. Wave finished?
-`/quest:retro`. Vocabulary and stop rules: `/quest:protocol`.
+**Next:** contracts weak? `$quest:plan` to fix them first. Wave finished?
+`$quest:retro`. Vocabulary and stop rules: `$quest:protocol`.

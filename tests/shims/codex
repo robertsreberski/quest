@@ -9,12 +9,54 @@ import { readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 const scenarioPath = process.env.QUEST_SHIM_SCENARIO;
+const argv = process.argv.slice(2);
+
+if (!scenarioPath) {
+  if (argv[0] === "--version") {
+    process.stdout.write("codex-cli 0.142.5\n");
+    process.exit(0);
+  }
+  if (argv.join(" ") === "plugin list --json") {
+    process.stdout.write(JSON.stringify({
+      installed: [
+        { pluginId: "quest@quest", name: "quest", marketplaceName: "quest", version: "0.3.0", installed: true, enabled: true },
+      ],
+      available: [],
+    }) + "\n");
+    process.exit(0);
+  }
+  if (argv.join(" ") === "debug prompt-input noop") {
+    const root = "/tmp/codex-plugin-cache/quest/quest/0.3.0";
+    process.stdout.write(JSON.stringify([
+      {
+        type: "message",
+        role: "developer",
+        content: [
+          {
+            type: "input_text",
+            text: [
+              "### Available skills",
+              `- quest:orchestrate: Run the quest loop. (file: ${root}/skills/orchestrate/SKILL.md)`,
+              `- quest:plan: Plan quests. (file: ${root}/skills/plan/SKILL.md)`,
+              `- quest:protocol: Quest protocol. (file: ${root}/skills/protocol/SKILL.md)`,
+              `- quest:retro: Quest retro. (file: ${root}/skills/retro/SKILL.md)`,
+              `- quest:work: Work a quest. (file: ${root}/skills/work/SKILL.md)`,
+            ].join("\n"),
+          },
+        ],
+      },
+    ]) + "\n");
+    process.exit(0);
+  }
+  process.stderr.write(`unexpected codex shim call without scenario: ${argv.join(" ")}\n`);
+  process.exit(127);
+}
+
 const scenario = JSON.parse(readFileSync(scenarioPath, "utf8"));
 const questDir = scenario.questDir || process.env.QUEST_DIR;
 const questBin = scenario.questBin;
 const id = String(scenario.questId);
 
-const argv = process.argv.slice(2);
 const isResume = argv.includes("resume");
 appendFileSync(scenarioPath + ".codex.calls.jsonl", JSON.stringify({ isResume, argv }) + "\n");
 

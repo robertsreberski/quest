@@ -1,4 +1,4 @@
 interface:
   display_name: "Work a Quest"
   short_description: "Execute one quest iteratively to a checkpointed stop"
-  default_prompt: "Use $work to execute quest <id> per the quest protocol, ending in a recorded checkpoint."
+  default_prompt: "Use $quest:work to execute quest <id> per the quest protocol, ending in a recorded checkpoint."
