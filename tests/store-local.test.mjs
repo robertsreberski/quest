@@ -74,6 +74,25 @@ test("ready gating respects depends_on and priority order", () => {
   assert.deepEqual(ready, ["Gated", "Free high", "Free low"]); // p0 tie → lower id first
 });
 
+test("epic gate: a parent is absent from --ready until every child is terminal; a cancelled child unblocks it", () => {
+  const epic = local.createQuest(storeDir, DEFAULTS, { title: "Epic" }, SECTIONS);
+  const childA = local.createQuest(storeDir, DEFAULTS, { title: "Child A", parent: epic.id }, SECTIONS);
+  const childB = local.createQuest(storeDir, DEFAULTS, { title: "Child B", parent: epic.id }, SECTIONS);
+
+  // Both children non-terminal → epic is gated out of ready.
+  assert.ok(!local.readyQuests(storeDir).some((q) => q.id === epic.id), "epic ready while children open");
+  // Children themselves are ready (no open children of their own).
+  const ready0 = local.readyQuests(storeDir).map((q) => q.id);
+  assert.deepEqual(ready0, [childA.id, childB.id]);
+
+  // Complete one child, cancel the other → both terminal → epic becomes ready.
+  local.startQuest(storeDir, childA.id);
+  local.appendCheckpoint(storeDir, childA.id, { quest_status: "complete", iteration: 1, changed: "done", validation_summary: "`ok`" });
+  assert.ok(!local.readyQuests(storeDir).some((q) => q.id === epic.id), "epic ready with one child still open");
+  local.cancelQuest(storeDir, childB.id, "descoped");
+  assert.ok(local.readyQuests(storeDir).some((q) => q.id === epic.id), "cancelled child must not wedge the epic forever");
+});
+
 test("create rejects unknown depends_on and parent", () => {
   assert.throws(() => local.createQuest(storeDir, DEFAULTS, { title: "Bad dep", depends_on: [99] }, SECTIONS), /unknown quest 99/);
   assert.throws(() => local.createQuest(storeDir, DEFAULTS, { title: "Bad parent", parent: 42 }, SECTIONS), /not found/);
@@ -87,6 +106,55 @@ test("cancel records reason and is terminal", () => {
   assert.equal(q.front.status, "cancelled");
   assert.ok(q.body.includes("superseded"));
   assert.throws(() => local.startQuest(storeDir, id), /illegal/);
+});
+
+test("reopen: complete → in_progress → re-complete, lint-clean throughout, audited by reopen_reason", () => {
+  const { id } = local.createQuest(storeDir, DEFAULTS, { title: "Reborn" }, SECTIONS);
+  local.startQuest(storeDir, id);
+  local.appendCheckpoint(storeDir, id, { quest_status: "complete", iteration: 1, changed: "done", validation_summary: "`npm test` → 10 passed" });
+  assert.deepEqual(local.lintAll(storeDir).flatMap((r) => r.problems), []);
+
+  // reopen requires a reason and only works on complete
+  assert.throws(() => local.reopenQuest(storeDir, id, ""), /reason/);
+  local.reopenQuest(storeDir, id, "review found npm audit criticals");
+  const reopened = local.loadQuest(storeDir, id);
+  assert.equal(reopened.front.status, "in_progress");
+  assert.equal(reopened.checkpoints.at(-1).quest_status, "in_progress");
+  assert.equal(reopened.checkpoints.at(-1).fields.reopen_reason, "review found npm audit criticals");
+  assert.deepEqual(local.lintAll(storeDir).flatMap((r) => r.problems), [], "reopened record must lint clean");
+
+  // reopened quests are NOT ready (status in_progress, not todo)
+  assert.ok(!local.readyQuests(storeDir).some((q) => q.id === id));
+
+  // re-complete: a normal checkpoint flips it back, still lint-clean
+  local.appendCheckpoint(storeDir, id, { quest_status: "complete", iteration: 3, changed: "fixed the criticals", validation_summary: "`npm audit` → 0 criticals" });
+  assert.equal(local.loadQuest(storeDir, id).front.status, "complete");
+  assert.deepEqual(local.lintAll(storeDir).flatMap((r) => r.problems), [], "re-completed record must lint clean");
+});
+
+test("reopen rejects non-complete statuses (todo, in_progress, blocked, cancelled)", () => {
+  const todo = local.createQuest(storeDir, DEFAULTS, { title: "Still todo" }, SECTIONS);
+  assert.throws(() => local.reopenQuest(storeDir, todo.id, "why"), /only complete/);
+
+  const cancelled = local.createQuest(storeDir, DEFAULTS, { title: "Gone" }, SECTIONS);
+  local.cancelQuest(storeDir, cancelled.id, "superseded");
+  assert.throws(() => local.reopenQuest(storeDir, cancelled.id, "why"), /only complete/);
+  assert.equal(local.loadQuest(storeDir, cancelled.id).front.status, "cancelled");
+});
+
+test("edit on a complete or cancelled quest throws with a reopen/new-quest hint", () => {
+  const { id } = local.createQuest(storeDir, DEFAULTS, { title: "Sealed" }, SECTIONS);
+  local.startQuest(storeDir, id);
+  local.appendCheckpoint(storeDir, id, { quest_status: "complete", iteration: 1, changed: "done", validation_summary: "`npm test` → green" });
+  const err = (() => { try { local.editQuest(storeDir, id, { addDoneWhen: ["late add"], rationale: "missed a case" }); } catch (e) { return e; } })();
+  assert.match(err.message, /complete/);
+  assert.match(err.hint, /reopen/);
+  // record untouched — the late done-when did not land
+  assert.ok(!local.loadQuest(storeDir, id).body.includes("late add"));
+
+  const c = local.createQuest(storeDir, DEFAULTS, { title: "Void" }, SECTIONS);
+  local.cancelQuest(storeDir, c.id, "dropped");
+  assert.throws(() => local.editQuest(storeDir, c.id, { addDoneWhen: ["x"], rationale: "y" }), /cancelled/);
 });
 
 test("edit appends only additions and records rationale", () => {

@@ -72,7 +72,7 @@ updated: 2026-07-07T14:00:00Z
 | `effort` | no | reasoning effort passed to the worker (e.g. `xhigh`); omitted = config default |
 | `max_iterations` | yes | positive integer (counts runner **sessions**) |
 | `max_cost` | no | USD number; omitted = uncapped |
-| `parent` | no | quest id (epic linking; children derived by scanning) |
+| `parent` | no | quest id (epic linking; children derived by scanning). A quest with children is an epic: excluded from `--ready` until every child is terminal (complete/cancelled), and closed by the orchestrator inline — never dispatched to a worker |
 | `depends_on` | no | list of quest ids (wave ordering) |
 | `created` / `updated` | yes | UTC ISO-8601 `…Z` |
 
@@ -135,7 +135,11 @@ Optional free-form note.
 
 - `quest_status` ∈ `in_progress | complete | blocked` — the only legal values.
 - `iteration` required; `pr`, `head_sha`, `failed_approaches`,
-  `compatible_expansion` optional.
+  `compatible_expansion`, `reopen_reason` optional.
+- `reopen_reason` is written only by `quest reopen`: it records why a `complete`
+  quest was legally sent back into the loop (`quest_status: in_progress`), so a
+  fresh session can see why a once-complete quest is in progress again. Old
+  parsers ignore it — `parseCheckpoints` accepts any `- key: value` line.
 - `validation_summary` required. When `quest_status: complete`, lint requires
   at least one backticked command in it (commands, not adjectives).
 - A checkpoint's `quest_status` drives the store `status` transition:
@@ -149,10 +153,15 @@ in_progress → complete        (checkpoint quest_status: complete)
 in_progress → blocked         (checkpoint quest_status: blocked)
 blocked → in_progress         (new checkpoint quest_status: in_progress)
 todo|in_progress|blocked → cancelled   (quest cancel --reason)
+complete → in_progress        (quest reopen --reason ONLY — never a checkpoint)
 ```
 
-Any other transition is illegal (exit 5). `complete` and `cancelled` are
-terminal.
+Any other transition is illegal (exit 5). `cancelled` is fully terminal.
+`complete` is terminal for **checkpoints** — a stray checkpoint can never
+resurrect it — but the `quest reopen <id> --reason` verb provides the one
+audited path back into the loop, flipping `complete → in_progress` and appending
+a checkpoint carrying `reopen_reason`. This is a separate `assertReopen` path in
+`lib/contract.mjs`, deliberately not part of the checkpoint transition table.
 
 ## GitHub backend mapping
 
@@ -161,7 +170,7 @@ terminal.
 | record | `quests/NNN-slug.md` | issue; body = same body sections |
 | orchestration metadata | frontmatter | `<!-- quest:meta -->` HTML block at top of body (same `key: value` lines) |
 | id | frontmatter `id` | issue number |
-| status | frontmatter | labels `quest:todo\|in-progress\|blocked\|complete\|cancelled` (+ marker label `quest`); issue state mirrored (complete → closed-completed, cancelled → closed-not-planned) |
+| status | frontmatter | labels `quest:todo\|in-progress\|blocked\|complete\|cancelled` (+ marker label `quest`); issue state mirrored (complete → closed-completed, cancelled → closed-not-planned, reopen → issue reopened + label swapped back to `quest:in-progress`) |
 | priority | frontmatter | labels `quest-p0\|p1\|p2` |
 | checkpoint | appended section | issue comment, identical bytes |
 | parent/child | child `parent:` | child meta `parent:` + epic body `## Children` task list (`- [ ] #12`) |

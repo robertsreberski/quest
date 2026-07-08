@@ -1,4 +1,4 @@
 interface:
   display_name: "Orchestrate Quests"
   short_description: "Dispatch workers on ready quests, verify checkpoints, rule on evidence"
-  default_prompt: "Use $orchestrate to drive the ready quests to completion."
+  default_prompt: "Use $quest:orchestrate to drive the ready quests to completion."

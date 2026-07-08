@@ -1,0 +1,3 @@
+{"timestamp":"2026-07-07T21:00:00Z","type":"thread.started","thread_id":"codex-fixture"}
+{"timestamp":"2026-07-07T21:00:01Z","type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"bash -lc 'quest start 1'","status":"completed"}}
+{"timestamp":"2026-07-07T21:00:02Z","type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"I did some work but forgot to checkpoint."}}

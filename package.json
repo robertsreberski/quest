@@ -1,6 +1,6 @@
 {
   "name": "quest-loop",
-  "version": "0.1.1",
+  "version": "0.3.0",
   "description": "Goal-loop engineering for coding agents: quest contracts, iterative execution with evidence checkpoints, Claude + Codex workers. Ships the `quest` store CLI and the `quest-run` headless runner.",
   "type": "module",
   "engines": { "node": ">=20" },

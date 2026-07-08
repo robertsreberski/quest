@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assertTransition, ContractError, lintRecord, makeCheckpoint, parseCheckpoints, parseRecord, recordFilename, serializeRecord, slugify } from "../lib/contract.mjs";
+import { assertReopen, assertTransition, ContractError, lintRecord, makeCheckpoint, parseCheckpoints, parseRecord, recordFilename, serializeRecord, slugify } from "../lib/contract.mjs";
 
 const TS = "2026-07-07T12:00:00Z";
 const FRONT = { id: 1, title: "Test quest", status: "todo", priority: "p1", worker: "claude", model: "inherit", max_iterations: 8, created: TS, updated: TS };
@@ -75,6 +75,31 @@ test("status transitions enforce the lifecycle", () => {
   const terminal = (() => { try { assertTransition("complete", "in_progress"); } catch (e) { return e; } })();
   assert.match(terminal.message, /illegal/);
   assert.match(terminal.hint, /terminal/);
+});
+
+test("the complete-terminal hint points at quest reopen while keeping the word terminal", () => {
+  const err = (() => { try { assertTransition("complete", "in_progress"); } catch (e) { return e; } })();
+  assert.match(err.hint, /terminal/);
+  assert.match(err.hint, /quest reopen/);
+});
+
+test("assertReopen accepts only complete; cancelled and non-terminal statuses throw", () => {
+  assert.doesNotThrow(() => assertReopen("complete"));
+  for (const from of ["todo", "in_progress", "blocked", "cancelled"]) {
+    assert.throws(() => assertReopen(from), ContractError, `expected ${from} to be rejected`);
+  }
+  const cancelled = (() => { try { assertReopen("cancelled"); } catch (e) { return e; } })();
+  assert.match(cancelled.hint, /terminal/);
+  assert.match(cancelled.hint, /new quest/);
+});
+
+test("reopen_reason round-trips through makeCheckpoint and parseCheckpoints", () => {
+  const block = makeCheckpoint({ timestamp: TS, quest_status: "in_progress", iteration: 3, changed: "reopened from complete", validation_summary: "reopened for further work; no execution this entry", reopen_reason: "review found npm audit criticals" });
+  assert.ok(block.includes("- reopen_reason: review found npm audit criticals"));
+  const cps = parseCheckpoints(`${BODY}\n${block}\n`);
+  assert.equal(cps.length, 1);
+  assert.equal(cps[0].quest_status, "in_progress");
+  assert.equal(cps[0].fields.reopen_reason, "review found npm audit criticals");
 });
 
 test("lint flags complete status without a complete checkpoint", () => {

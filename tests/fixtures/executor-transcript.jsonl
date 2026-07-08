@@ -1,4 +1,6 @@
 {"type":"user","timestamp":"2020-01-01T00:00:00.000Z","message":{"role":"user","content":"Work quest 1 per /quest:work. Do not record any checkpoint."}}
 {"type":"assistant","timestamp":"2020-01-01T00:00:01.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Orienting."},{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"node bin/quest show 1 --json"}}]}}
-{"type":"user","timestamp":"2020-01-01T00:00:02.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"{\"id\":1,\"status\":\"in_progress\"}"}]}}
-{"type":"assistant","timestamp":"2020-01-01T00:00:03.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Did the work. Stopping now without a checkpoint."}]}}
+{"type":"user","timestamp":"2020-01-01T00:00:02.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"{\"id\":1,\"status\":\"todo\"}"}]}}
+{"type":"assistant","timestamp":"2020-01-01T00:00:03.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Starting the quest."},{"type":"tool_use","id":"t2","name":"Bash","input":{"command":"node bin/quest start 1"}}]}}
+{"type":"user","timestamp":"2020-01-01T00:00:04.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t2","content":"Quest 1 is now in_progress."}]}}
+{"type":"assistant","timestamp":"2020-01-01T00:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Did the work. Stopping now without a checkpoint."}]}}

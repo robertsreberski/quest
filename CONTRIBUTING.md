@@ -11,9 +11,10 @@ Test the plugin live in Claude Code by pointing it at your checkout:
 claude --plugin-dir .
 ```
 
-The skills (`/quest:plan`, `/quest:work`, `/quest:orchestrate`, `/quest:retro`,
-`/quest:protocol`) and agents load straight from the working tree, so edits show
-up on the next session.
+The skills (`$quest:plan`, `$quest:work`, `$quest:orchestrate`, `$quest:retro`,
+`$quest:protocol`, `$quest:setup`) and agents load straight from the working
+tree, so edits show up on the next session. Claude Code also exposes the skills
+through the `/quest:*` slash-command form.
 
 Before opening a PR, run the same gates CI runs:
 
@@ -87,5 +88,12 @@ fresh session can resume from.
    git push origin main --tags
    ```
 
-quest is distributed as a plugin (not an npm package), so there is no `npm
-publish` step — the tag is the release.
+5. Publish the npm package **only when the CLI surface changed** (`quest` /
+   `quest-run` behavior or flags):
+
+   ```bash
+   npm publish
+   ```
+
+quest is distributed as a plugin and an npm CLI package. The tag updates plugin
+marketplace installs; `npm publish` (step 5) updates `npm install -g quest-loop`.

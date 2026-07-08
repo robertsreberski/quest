@@ -101,6 +101,63 @@ test("github lifecycle: start → checkpoint → complete, with identical checkp
   assert.equal(await run(["lint", "--all"], io()), 0);
 });
 
+test("github reopen: complete → in_progress reopens the issue, swaps the label, comments the reopen_reason", async () => {
+  await run(["init", "--backend", "github", "--repo", "o/r"], io());
+  await run(CREATE, io());
+  await run(["start", "1"], io());
+  await run(["checkpoint", "1", "--status", "complete", "--summary", "all done", "--validation", "`node --test` → 10 passed"], io());
+
+  // Precondition: the completed issue is CLOSED and carries quest:complete.
+  let state = JSON.parse(readFileSync(statePath, "utf8"));
+  assert.equal(state.issues["1"].state, "CLOSED");
+  assert.ok(state.issues["1"].labels.some((l) => l.name === "quest:complete"));
+
+  assert.equal(await run(["reopen", "1", "--reason", "review found npm audit criticals"], io()), 0);
+
+  state = JSON.parse(readFileSync(statePath, "utf8"));
+  // Issue is OPEN again, label swapped complete → in-progress.
+  assert.equal(state.issues["1"].state, "OPEN");
+  assert.ok(state.issues["1"].labels.some((l) => l.name === "quest:in-progress"));
+  assert.ok(!state.issues["1"].labels.some((l) => l.name === "quest:complete"));
+  // Comment-first order: the reopen appends one audited checkpoint comment
+  // (complete checkpoint + reopen checkpoint = 2 comments on this issue).
+  const comments = state.issues["1"].comments;
+  assert.equal(comments.length, 2);
+  const reopenComment = comments.at(-1);
+  assert.ok(reopenComment.body.includes("<!-- quest:checkpoint -->"));
+  assert.match(reopenComment.body, /quest_status: in_progress/);
+  assert.match(reopenComment.body, /- reopen_reason: review found npm audit criticals/);
+
+  // show --json now reports in_progress and lint --all stays clean.
+  out.length = 0;
+  assert.equal(await run(["show", "1", "--json"], io()), 0);
+  assert.equal(JSON.parse(out[0]).status, "in_progress");
+  assert.equal(await run(["lint", "--all"], io()), 0);
+});
+
+test("github reopen without --reason exits 5 and mutates nothing", async () => {
+  await run(["init", "--backend", "github", "--repo", "o/r"], io());
+  await run(CREATE, io());
+  await run(["start", "1"], io());
+  await run(["checkpoint", "1", "--status", "complete", "--summary", "done", "--validation", "`node --test` → 10 passed"], io());
+  const before = readFileSync(statePath, "utf8");
+  assert.equal(await run(["reopen", "1"], io()), 5);
+  assert.match(err.join("\n"), /reason/);
+  assert.equal(readFileSync(statePath, "utf8"), before, "no gh mutation on a missing reason");
+});
+
+test("github edit on a complete quest exits 5 and comments nothing", async () => {
+  await run(["init", "--backend", "github", "--repo", "o/r"], io());
+  await run(CREATE, io());
+  await run(["start", "1"], io());
+  await run(["checkpoint", "1", "--status", "complete", "--summary", "done", "--validation", "`node --test` → 10 passed"], io());
+  const commentsBefore = JSON.parse(readFileSync(statePath, "utf8")).issues["1"].comments.length;
+  assert.equal(await run(["edit", "1", "--add-done-when", "late add", "--rationale", "missed a case"], io()), 5);
+  assert.match(err.join("\n"), /complete/);
+  const commentsAfter = JSON.parse(readFileSync(statePath, "utf8")).issues["1"].comments.length;
+  assert.equal(commentsAfter, commentsBefore, "edit on complete must not comment");
+});
+
 test("illegal transition (todo → complete) exits 5 and mutates nothing", async () => {
   await run(["init", "--backend", "github", "--repo", "o/r"], io());
   await run(CREATE, io());
@@ -119,6 +176,29 @@ test("child quest links into the parent's ## Children task list", async () => {
   assert.match(state.issues["1"].body, /## Children/);
   assert.match(state.issues["1"].body, /- \[ \] #2/);
   assert.match(state.issues["2"].body, /parent: 1/);
+});
+
+test("epic gate: parent absent from --ready until children terminal; cancelled child unblocks it (github parity)", async () => {
+  await run(["init", "--backend", "github", "--repo", "o/r"], io());
+  await run(CREATE, io()); // epic = #1
+  await run([...CREATE, "--title", "Child one", "--parent", "1"], io()); // #2
+  await run([...CREATE, "--title", "Child two", "--parent", "1"], io()); // #3
+
+  const readyIds = async () => {
+    out.length = 0;
+    await run(["list", "--ready", "--json"], io());
+    return JSON.parse(out[0]).map((q) => q.id);
+  };
+
+  // Both children open → epic gated out; children themselves are ready.
+  assert.deepEqual(await readyIds(), [2, 3]);
+
+  // Complete one child, cancel the other → both terminal → epic becomes ready.
+  await run(["start", "2"], io());
+  await run(["checkpoint", "2", "--status", "complete", "--summary", "done", "--validation", "`node --test` → green"], io());
+  assert.ok(!(await readyIds()).includes(1), "epic ready with one child still open");
+  await run(["cancel", "3", "--reason", "descoped"], io());
+  assert.ok((await readyIds()).includes(1), "cancelled child must not wedge the epic forever");
 });
 
 test("missing gh exits 6 and never falls back to local", async () => {

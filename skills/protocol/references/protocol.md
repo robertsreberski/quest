@@ -1,7 +1,7 @@
 # The quest loop protocol
 
 This is the base protocol every quest execution follows. Local amendments (mined
-from retros, see `/quest:retro`) live in `.quests/amendments.md` and extend this
+from retros, see `$quest:retro`) live in `.quests/amendments.md` and extend this
 document — read both. `quest protocol` prints them together.
 
 ## Vocabulary
@@ -44,7 +44,11 @@ Each iteration:
 6. **Evaluate stop conditions.**
    - `complete` — every "Done when" item is enumerated as
      **Done / Blocked / Cancelled** with its evidence, and no new TODOs or
-     follow-up work remain inside this quest (file a new quest instead).
+     follow-up work remain inside this quest (file a new quest instead). If a
+     completed quest is later found defective, the one legal way back into the
+     loop is `quest reopen <id> --reason` (flips `complete → in_progress`,
+     appends an audited `reopen_reason` checkpoint) — never hand-edit a terminal
+     status line. `cancelled` stays fully terminal.
    - `blocked` — (a) two consecutive iterations failing on the same error,
      (b) a decision only a human can make, or (c) an unsatisfiable "Done when"
      — name the exact discrepancy and the corrected anchor; **never improvise
@@ -81,7 +85,7 @@ When reviewing a finished iteration or run, the orchestrator rules one of:
 - **accept** — the checkpoint's evidence actually satisfies the Done-when items
   it claims (quote the commands; never accept adjectives).
 - **iterate-with-feedback** — send the specific gap back to the executor.
-- **split** — the quest was bigger than it looked; decompose via `/quest:plan`.
+- **split** — the quest was bigger than it looked; decompose via `$quest:plan`.
 - **escalate-to-human** — human-only decisions are surfaced verbatim, never
   guessed.
 
@@ -90,4 +94,8 @@ When reviewing a finished iteration or run, the orchestrator rules one of:
 - **Small** — one quest, worked inline in the current session.
 - **Medium** — one quest dispatched to an executor (subagent or headless run).
 - **Large** — an epic (parent quest) with child quests in dependency waves via
-  `depends_on`; orchestrate wave by wave.
+  `depends_on`; orchestrate wave by wave. The epic itself is never dispatched to
+  a worker: it is gated out of `--ready` while any child is non-terminal, and
+  once the children are done the orchestrator closes it inline (verify children,
+  run the epic validation loop, checkpoint). Keep the epic contract
+  integration-level; its milestones must not mirror the children 1:1.

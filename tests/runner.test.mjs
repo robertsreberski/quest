@@ -183,7 +183,23 @@ test("notify failure is isolated — warns but never changes the exit code", asy
   assert.match(err.join("\n"), /notify command failed/);
 });
 
-test("codex: narrated create_goal triggers exactly one corrective resume", async () => {
+test("codex: default goal auto mode does not require create_goal", async () => {
+  await createQuest("codex");
+  writeScenario({
+    initial: { createGoal: false, checkpoint: "complete" },
+    thread_id: "th-auto",
+  });
+  const { io } = runnerIo();
+
+  const code = await runnerRun(["1"], io);
+  assert.equal(code, 0);
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "complete");
+
+  const calls = readFileSync(scenarioPath + ".codex.calls.jsonl", "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  assert.equal(calls.length, 1, "auto mode should not corrective-resume solely because create_goal is unavailable");
+});
+
+test("codex: require goal mode triggers exactly one corrective resume", async () => {
   await createQuest("codex");
   writeScenario({
     initial: { createGoal: false },
@@ -192,7 +208,7 @@ test("codex: narrated create_goal triggers exactly one corrective resume", async
   });
   const { io } = runnerIo();
 
-  const code = await runnerRun(["1"], io);
+  const code = await runnerRun(["1", "--codex-goal-mode", "require"], io);
   assert.equal(code, 0);
   assert.equal(local.loadQuest(storeDir, 1).front.status, "complete");
 
@@ -202,6 +218,40 @@ test("codex: narrated create_goal triggers exactly one corrective resume", async
   assert.equal(calls[1].isResume, true);
   assert.match(calls[1].argv.join(" "), /narrated it instead/);
   assert.match(calls[1].argv.join(" "), /create_goal tool now/);
+  assert.equal(calls[1].argv.includes("-C"), false, "codex exec resume does not support -C/--cd");
+});
+
+test("codex: require goal mode blocks when goal tools remain unavailable", async () => {
+  await createQuest("codex");
+  writeScenario({
+    initial: { createGoal: false },
+    resume: { createGoal: false },
+  });
+  const { io } = runnerIo();
+
+  const code = await runnerRun(["1", "--codex-goal-mode", "require"], io);
+  assert.equal(code, 10);
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "blocked");
+  assert.match(recordText(), /goal tools were required/);
+});
+
+test("codex: require goal mode blocks even when a milestone checkpoint lands", async () => {
+  await createQuest("codex");
+  // The worker makes real in_progress progress but never invokes create_goal —
+  // require mode must still block, not accept the milestone as satisfying it.
+  writeScenario({
+    initial: { createGoal: false, checkpoint: "in_progress" },
+    resume: { createGoal: false },
+  });
+  const { io } = runnerIo();
+
+  const code = await runnerRun(["1", "--codex-goal-mode", "require"], io);
+  assert.equal(code, 10);
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "blocked");
+  assert.match(recordText(), /goal tools were required/);
+  // The blocked session is still journaled as a finished iteration (telemetry).
+  const iters = runsEvents().filter((e) => e.event === "iteration_finished");
+  assert.equal(iters.length, 1, "the blocked session must appear in run telemetry");
 });
 
 test("codex: default sandbox is workspace-write in the built invocation", async () => {
@@ -262,6 +312,35 @@ test("codex: --codex-sandbox rejects an illegal value with a usage error (exit 2
   assert.match(err.join("\n"), /--codex-sandbox must be one of/);
   // No silent escalation and nothing spawned.
   assert.equal(local.loadQuest(storeDir, 1).front.status, "todo");
+});
+
+test("codex: --codex-goal-mode rejects an illegal value with a usage error (exit 2)", async () => {
+  await createQuest("codex");
+  const { io, err } = runnerIo();
+  const code = await runnerRun(["1", "--codex-goal-mode", "required-ish", "--dry-run", "--json"], io);
+  assert.equal(code, 2);
+  assert.match(err.join("\n"), /--codex-goal-mode must be one of/);
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "todo");
+});
+
+test("early-exit on an already-complete quest suggests quest reopen and spawns nothing", async () => {
+  await createQuest("claude");
+  local.startQuest(storeDir, 1);
+  local.appendCheckpoint(storeDir, 1, { quest_status: "complete", iteration: 1, changed: "done", validation_summary: "`node --test` → green" });
+  const { io, out, err } = runnerIo();
+
+  const code = await runnerRun(["1"], io);
+  assert.equal(code, 0, "already-complete is a clean early exit");
+  assert.match(err.join("\n"), /already complete/);
+  assert.match(err.join("\n"), /quest reopen 1 --reason/);
+  // Nothing spawned: the quest stays complete and the worker shim was never called.
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "complete");
+  assert.ok(!existsSync(scenarioPath + ".claude.calls.jsonl"), "must not spawn the worker on a complete quest");
+  // The run is journaled honestly as a 0-session complete (no-op).
+  const ended = runsEvents().find((e) => e.event === "run_ended");
+  assert.equal(ended.final_status, "complete");
+  assert.equal(ended.iterations, 0);
+  assert.match(out.join("\n"), /ended complete after 0 session/);
 });
 
 test("--dry-run prints the invocation and spawns nothing", async () => {
@@ -326,6 +405,30 @@ test("--ready runs every ready quest to completion", async () => {
   assert.equal(local.loadQuest(storeDir, 2).front.status, "complete");
   const ended = runsEvents().filter((e) => e.event === "run_ended");
   assert.equal(ended.length, 2);
+});
+
+test("--ready never auto-dispatches an epic — no run_started for it, stderr says it is an epic", async () => {
+  await createQuest("claude", [], "Epic parent"); // #1
+  await createQuest("claude", ["--parent", "1"], "Only child"); // #2
+  // Complete the child so the epic's children are all terminal and the epic
+  // itself becomes "ready" — this is exactly the case --ready must still skip.
+  local.startQuest(storeDir, 2);
+  local.appendCheckpoint(storeDir, 2, { quest_status: "complete", iteration: 1, changed: "done", validation_summary: "`ok`" });
+  assert.deepEqual(local.readyQuests(storeDir).map((q) => q.id), [1], "epic is the only ready quest");
+
+  const { io, err } = runnerIo();
+  const code = await runnerRun(["--ready"], io);
+  assert.equal(code, 0);
+  // The runner started no worker run for the epic.
+  assert.ok(!runsEvents().some((e) => e.event === "run_started" && e.quest === 1), "epic must not be dispatched");
+  // The skip line names it as an epic and points at the orchestrate skill.
+  assert.match(err.join("\n"), /is an epic/);
+  // Direct dispatch stays allowed: quest-run <id> on the epic runs it (the
+  // shim drives it to complete), proving the block is --ready-only.
+  writeScenario({ sessions: ["complete"], questId: 1 });
+  const { io: io2 } = runnerIo();
+  assert.equal(await runnerRun(["1"], io2), 0);
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "complete", "direct quest-run on an epic stays allowed");
 });
 
 test("--ready --parallel promotes a quest whose dependency just completed", async () => {

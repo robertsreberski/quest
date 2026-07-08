@@ -12,17 +12,17 @@ actually read.
 - `quest` — the quest store: contracts, checkpoints, wave scheduling. Local
   markdown files by default; GitHub Issues opt-in.
 - `quest-run` — the headless runner: drives `claude -p` or `codex exec` workers
-  in native goal mode with deterministic budgets and notifications.
-- Five skills — `/quest:plan`, `/quest:work`, `/quest:orchestrate`,
-  `/quest:retro`, `/quest:protocol`.
-- Two agents — `quest-executor`, `quest-reviewer`.
+  with deterministic budgets, notifications, and checkpoint-based stop checks.
+- Six skills — `$quest:plan`, `$quest:work`, `$quest:orchestrate`,
+  `$quest:retro`, `$quest:protocol`, `$quest:setup`.
+- Two native-agent templates — `quest-executor`, `quest-reviewer`.
 
 ## The idea in 30 seconds
 
 ```
-you:    /quest:plan add dark mode to the settings page
+you:    $quest:plan add dark mode to the settings page
 agent:  creates quest 12 — Objective, Done-when, Validation loop… (quest create)
-you:    /quest:orchestrate
+you:    $quest:orchestrate
 agent:  dispatches a worker on quest 12; it iterates: milestone → validate →
         commit → checkpoint. You review evidence, not vibes.
 ```
@@ -39,7 +39,7 @@ npm install -g quest-loop
 ```
 
 Puts `quest` and `quest-run` on your PATH everywhere — no harness required.
-The plugin installs below add the skills, agents, and hooks on top.
+The plugin installs below add the skills, hooks, and native-agent setup on top.
 
 ### Claude Code
 
@@ -76,10 +76,14 @@ Verify the install with:
 
 ```bash
 codex plugin list --marketplace quest
+quest codex install-agents --scope project
+quest codex doctor
 codex debug prompt-input "noop"
 ```
 
-`codex debug prompt-input "noop"` should not print any hook parse warnings.
+`quest codex doctor` checks the installed plugin version, hook parser, neutral
+skill roots, and native Codex custom agents. `codex debug prompt-input "noop"`
+should not print any hook parse warnings.
 
 #### Updating the Codex plugin
 
@@ -91,6 +95,7 @@ Refresh the marketplace snapshot, then reinstall the plugin from it:
 codex plugin marketplace upgrade quest
 codex plugin add quest@quest
 codex plugin list --marketplace quest
+quest codex doctor
 ```
 
 Then start a new Codex thread. If the update contains hook changes, re-run:
@@ -127,8 +132,11 @@ quest list --ready
 Work the quest **in-session** with the skill:
 
 ```
-/quest:work 12
+$quest:work 12
 ```
+
+In Claude Code, use the same bundled skills through the `/quest:*` slash-command
+form.
 
 …or **headless** with the runner:
 
@@ -171,19 +179,21 @@ full base protocol lives in
 | `quest start` | Mark a quest in_progress (todo → in_progress) |
 | `quest checkpoint` | Record iteration evidence and drive the quest's status |
 | `quest cancel` | Cancel a quest (terminal; reason is recorded) |
+| `quest reopen` | Reopen a complete quest back into the loop (complete → in_progress; reason recorded) |
 | `quest edit` | Compatibly expand a quest (additions only; anchors are immutable) |
 | `quest lint` | Check records against the contract spec |
 | `quest amend` | Append a numbered protocol amendment (retro output) |
 | `quest protocol` | Print the loop protocol + this store's local amendments |
 | `quest runs` | Show headless runner activity (from `.quests/runs.ndjson`) |
+| `quest codex` | Validate Codex-native setup and install native agent templates |
 
 ## quest-run (headless runner)
 
 `quest-run <id>` drives a worker through the same loop without you in the chair:
 
 - **Workers** — `claude` (`claude -p`) or `codex` (`codex exec`), selected per
-  quest. Both run in **native goal mode** with a machine-verifiable completion
-  condition.
+  quest. Both use a machine-verifiable Quest checkpoint completion condition;
+  Codex goal tools are optional by default and can be required explicitly.
 - **Budgets** — deterministic iteration, cost, token, and per-session
   wall-clock (`--session-timeout`, default 1800s) caps; two sessions without a
   new checkpoint (a killed hung session counts as one) auto-writes a `blocked`
@@ -192,6 +202,12 @@ full base protocol lives in
   goes through the `quest` CLI, and the runs journal stays local.
 - **`--parallel N`** — with `--ready`, promotes and works newly-ready quests
   across dependency waves, up to N at a time.
+- **Epics are never auto-dispatched** — a quest with children stays out of
+  `--ready` until every child is terminal, and `quest-run --ready` refuses it
+  even then (it logs an "is an epic" skip line). Epics are closed by the
+  orchestrator inline per `$quest:orchestrate`, not by burning a worker run on
+  pure verification. A direct `quest-run <id>` on an epic still runs, if you
+  really mean to.
 - **`--notify '<cmd>'`** — runs a templated command on run start/stop so you get
   pinged; notify failures are isolated from the run.
 - **`--codex-sandbox <mode>`** — selects the `codex exec` sandbox
@@ -202,12 +218,19 @@ full base protocol lives in
   must commit has to opt into **`danger-full-access`** — which also grants full
   disk and network access. The runner never escalates the sandbox silently; the
   safe `workspace-write` stays the default. (Claude workers ignore this flag.)
+- **`--codex-goal-mode <mode>`** — selects how `quest-run` treats Codex goal
+  tools (`auto` | `require` | `off`; resolved as flag → config
+  `defaults.codex.goal_mode` → default `auto`). `auto` uses the documented
+  `codex exec --json --output-schema` stream as the contract and lets Codex use
+  goal tools if they are available. `require` blocks honestly if the exec
+  surface does not expose or invoke `create_goal`. `off` never asks for goal
+  tools.
 
 Inspect activity with `quest runs --active`.
 
 > **Note:** `quest-run` ships with this build's runner milestone (tracked as
 > quest 5). On a pre-0.1.0 checkout where `bin/quest-run` isn't present yet, use
-> `/quest:work` in-session instead.
+> `$quest:work` in-session instead.
 
 ## Store backends
 

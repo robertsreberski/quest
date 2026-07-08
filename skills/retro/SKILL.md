@@ -46,5 +46,5 @@ quest amend --text "Treat a test that fails twice in one quest as a blocker to e
 quest protocol  # confirm the amendment now rides along
 ```
 
-**Next:** amendments feed every future `/quest:work` orient automatically.
-Start the next wave with `/quest:orchestrate`.
+**Next:** amendments feed every future `$quest:work` orient automatically.
+Start the next wave with `$quest:orchestrate`.

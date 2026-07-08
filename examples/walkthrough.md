@@ -43,9 +43,9 @@ quest init
 Initialized local quest store at /tmp/quest-demo-local/.quests
 
 Store created. Next steps:
-  1. Author a quest:   quest create --help   (or /quest:plan in your agent session)
+  1. Author a quest:   quest create --help   (or $quest:plan in your agent session)
   2. Check it:         quest lint --all
-  3. Work it:          /quest:work <id> in-session, or quest-run <id> headless
+  3. Work it:          $quest:work <id> in-session, or quest-run <id> headless
 ```
 
 ```bash
@@ -94,14 +94,14 @@ Now run a **real orchestrator session on sonnet**. It reads the ready queue,
 dispatches the `quest-executor` subagent **at the record's tier (haiku)**,
 watches it iterate, and verifies the checkpoint before accepting.
 
-Interactively this is simply `/quest:orchestrate` inside a Claude Code session
-opened with `claude --plugin-dir "$PLUGIN_DIR"`. Captured here headlessly with
-`-p` so the result is machine-readable:
+Interactively this is `$quest:orchestrate` in Codex, or `/quest:orchestrate`
+inside a Claude Code session opened with `claude --plugin-dir "$PLUGIN_DIR"`.
+Captured here headlessly with `-p` so the result is machine-readable:
 
 ```bash
 cd "$DEMO"
 claude --plugin-dir "$PLUGIN_DIR" \
-  -p "Orchestrate the ready quests per /quest:orchestrate. Dispatch the quest-executor subagent per the record (its model field says haiku). Verify the checkpoint before accepting." \
+  -p "Orchestrate the ready quests per \$quest:orchestrate. Dispatch the quest-executor subagent per the record (its model field says haiku). Verify the checkpoint before accepting." \
   --model sonnet \
   --permission-mode acceptEdits \
   --allowedTools "Bash,Read,Edit,Write,Glob,Grep,Agent,Skill" \
@@ -216,12 +216,13 @@ quest-run 1 --dry-run
 ```
 # dry run — quest 1 (codex); nothing spawned
 PATH=$PLUGIN_DIR/bin:… \
-codex exec "First step: Create a goal for this thread using the create_goal tool
-(not as prose) with this exact stopping condition: the output of `quest show 1
---json` shown in this conversation contains a NEW checkpoint (timestamp after
-2026-07-07T14:32:54Z) with quest_status complete or blocked. Verify with get_goal.
-Only call update_goal(status=\"complete\") AFTER `quest checkpoint` succeeded.
-Work quest 1 per the /quest:work skill. …" --json -m gpt-5.5 -C /tmp/quest-demo-codex
+codex exec "If goal tools are available in this exec surface, create a goal for
+this thread using the create_goal tool with this exact stopping condition: the
+output of `quest show 1 --json` shown in this conversation contains a NEW
+checkpoint (timestamp after 2026-07-07T14:32:54Z) with quest_status complete or
+blocked. If you created a goal, verify with get_goal. Only call
+update_goal(status=\"complete\") AFTER `quest checkpoint` succeeded. Work quest
+1 per the \$quest:work skill. …" --json -m gpt-5.5 -C /tmp/quest-demo-codex
 --sandbox workspace-write --skip-git-repo-check -o $TMPDIR/quest-run-codex-<uuid>.json
 --output-schema $PLUGIN_DIR/schemas/final-report.schema.json -c model_reasoning_effort=medium
 ```
@@ -359,8 +360,7 @@ The whole loop, end to end:
 - **Dispatch → iterate → checkpoint** — the sonnet orchestrator dispatched a
   haiku executor, which implemented, validated (`make hello`), committed green,
   and recorded a checkpoint each iteration (§2). Headless, the same loop runs a
-  Codex worker in native goal mode with a machine-verifiable stopping condition
-  (§3).
+  Codex worker with a machine-verifiable checkpoint stopping condition (§3).
 - **Verify from the store** — completion is believed only after
   `quest show --json` shows a real checkpoint trail whose evidence discharges the
   Done-when items — never a chat summary (§2).

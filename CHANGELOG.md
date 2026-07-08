@@ -4,6 +4,85 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [0.3.0] — 2026-07-08
+
+### Added
+- `$quest:setup` skill plus `quest codex doctor` for native Codex validation:
+  checks Codex CLI availability, installed `quest@quest` version, hook parser
+  health, neutral-directory Quest skill roots, and native `quest-executor` /
+  `quest-reviewer` custom-agent availability.
+- `quest codex install-agents --scope project|user` installs Quest's bundled
+  agent TOML files into Codex's native `.codex/agents` or `~/.codex/agents`
+  locations. The command is idempotent, supports `--dry-run`, and requires
+  `--force` before replacing different existing agent files.
+- `quest --version` reports the package version.
+- `quest-run --codex-goal-mode auto|require|off` controls how headless Codex
+  runs treat goal tools. `auto` is the default and uses documented
+  `codex exec --json --output-schema` output as the contract; `require` blocks
+  honestly when `create_goal` is not observed; `off` avoids goal-tool prompts.
+
+### Changed
+- Codex is now the first-class plugin path in docs and skill UI metadata:
+  examples use `$quest:*`, the Codex setup flow runs `quest codex doctor`, and
+  `package.json`, `.claude-plugin/plugin.json`, and `.codex-plugin/plugin.json`
+  now share the same version.
+- `codex exec resume` invocations no longer pass unsupported `-C`; the runner
+  relies on the child process working directory and original Codex session.
+- Bundled hooks now prefer `CODEX_PLUGIN_ROOT` with a `CLAUDE_PLUGIN_ROOT`
+  fallback, include a `resume` SessionStart matcher, status messages, timeouts,
+  and Windows command variants.
+
+### Fixed
+- SubagentStop hook now recognizes Codex JSONL `command_execution` entries in
+  addition to Claude-style `tool_use.input.command` blocks, while preserving the
+  mutating-verb-only detection rule.
+
+## [0.2.0] — 2026-07-08
+
+### Added
+- `quest reopen <id> --reason <why>` — the audited exit from `complete`. Flips a
+  completed quest back to `in_progress` on both backends, recording the reason in
+  a real checkpoint via the new optional `reopen_reason` field; the GitHub backend
+  reopens the mirrored issue and swaps `quest:complete → quest:in-progress`.
+  `TRANSITIONS.complete` stays empty — a checkpoint can never resurrect a complete
+  quest; only the explicit verb can, and `cancelled` remains fully terminal.
+  Reopening a child of a complete parent epic warns on stderr that the epic's
+  verdict may be falsified. Reopened quests do not re-enter `quest list --ready`;
+  they are dispatched directly by id. `quest edit` on a complete or cancelled
+  quest now errors with a reopen-first / file-a-new-quest hint, and `quest-run`
+  on an already-complete quest suggests the verb instead of silently no-opping.
+
+### Changed
+- Wave composition now treats epics (parent quests) as orchestrator-closed, not
+  worker-dispatched. `quest list --ready` excludes any quest with a non-terminal
+  child (a child in complete or cancelled is terminal, so a cancelled child no
+  longer wedges its epic), in both the local and GitHub backends. `quest-run
+  --ready` additionally refuses to auto-dispatch a quest that has children even
+  once they are all terminal, logging an actionable "is an epic — close it inline
+  per $quest:orchestrate" line; a direct `quest-run <id>` on an epic stays
+  allowed. The orchestrate skill gains a "Closing an epic" procedure and the plan
+  skill documents that epic contracts are integration-level only.
+
+### Fixed
+- SubagentStop hook now keys quest-executor detection to real *mutating*
+  invocations — `quest start <id>` or `quest checkpoint <id>` (under any binary
+  prefix: `quest`, `./bin/quest`, `node bin/quest`) — instead of the read-only
+  `quest show <id> --json` orientation call. Reviewers and orchestrators that run
+  only read verbs (show / list / protocol / runs) never owned a quest, so they are
+  allowed silently; this removes a false positive where a read-only quest-reviewer
+  was blocked at stop for merely inspecting a terminal quest. A `quest checkpoint`
+  invocation counts too, so an executor resuming an already-in_progress quest
+  (which skips `quest start`) is still detected. The first mutating invocation wins
+  (deterministic); the executor block, per-entry parsing that keeps skill-text
+  examples from keying detection, and conservative allow-on-ambiguity are all
+  preserved.
+- SubagentStop hook now derives the quest-executor id by parsing the transcript
+  JSONL per-entry and matching its marker only inside real tool_use command
+  invocations — never prose, examples, or echoed file contents. This removes a
+  false positive where skill-text examples keyed the detection ahead of the
+  executor's real call. The first real invocation wins (deterministic);
+  conservative allow-on-ambiguity is preserved.
+
 ## [0.1.1] — 2026-07-07
 
 ### Fixed
