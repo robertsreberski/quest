@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## [0.3.2] — 2026-07-08
+
+### Changed
+- `$quest:orchestrate` now states that Codex native subagents are the default
+  dispatch path for serial and parallel waves; `quest-run` is fallback-only
+  unless headless/background execution is explicitly requested.
+- `$quest:plan` now routes accepted Plan Mode implementation requests straight
+  to the orchestrator role instead of leaving room for parent-session
+  `$quest:work` execution.
+
+### Fixed
+- `quest codex doctor` now fails on stale `quest` binaries on PATH, stale
+  installed Codex plugin versions, and duplicate Quest skill roots in
+  `codex debug prompt-input "noop"` output.
+
 ## [0.3.1] — 2026-07-08
 
 ### Changed

@@ -32,23 +32,24 @@ trails, and escalations only where a human ruling is genuinely needed.
    If native goal mode is unavailable, say so and keep the Quest checkpoint
    trail as the hard stop signal; do not pretend a goal was set.
 3. **Dispatch** each ready quest per its record:
-   - In Codex, use native subagents when the `spawn_agent` tool is available:
+   - In Codex, the default path is native subagents for both serial and
+     parallel waves. If `spawn_agent` is not visible, call `tool_search` once
+     for subagent tools before choosing any fallback. When available, spawn:
      `agent_type: "quest-executor"` and prompt =
      `First call create_goal with: quest <id> has a new checkpoint whose
      quest_status is complete or blocked in \`quest show <id> --json\`; verify
      with get_goal; work quest <id> per $quest:work; only call
      update_goal(status="complete") after the checkpoint exists.`
-     If the tool is not visible, use `tool_search` once for subagent tools. If
-     the agent template is missing, run `quest codex install-agents --scope
+     If the agent template is missing, run `quest codex install-agents --scope
      project` (or `$quest:setup`) before dispatching.
    - In Claude Code, spawn the `quest-executor` subagent with the record's
      `model`/`effort` as the dispatch override and prompt =
      `/goal quest <id> has a new checkpoint whose quest_status is complete or
      blocked in \`quest show <id> --json\`\nWork quest <id> per $quest:work.`
-   - For headless Codex/Claude work, parallel batches, or anything long-running,
-     run `quest-run <id>` in **background Bash** and keep working; you'll be
-     notified when it exits. Codex fallback must require goal mode:
-     `quest-run <id> --worker codex --codex-goal-mode require`. Parallel
+   - Use `quest-run` only when native subagents are still unavailable after
+     `tool_search`, or when the user explicitly asks for headless/background
+     execution. Codex fallback must require goal mode:
+     `quest-run <id> --worker codex --codex-goal-mode require`. Headless
      file-disjoint waves can use `quest-run --ready --parallel 3
      --codex-goal-mode require` (add `--isolate worktree` when they touch the
      same files). Claude headless runs already enter native `/goal` mode.
@@ -140,7 +141,7 @@ genuinely done.
 ```bash
 quest list --ready --json     # → [{"id":12,"worker":"claude"…},{"id":13,"worker":"codex"…}]
 # 12 → spawn quest-executor with a child /goal or create_goal prompt
-# 13 → background Bash: quest-run 13 --worker codex --codex-goal-mode require
+# 13 → spawn quest-executor too; use quest-run only if native subagents are unavailable
 # …executor stops →
 quest show 12 --json          # new checkpoint? quest_status? evidence?
 # reviewer on 12's diff → findings dispositioned → accept

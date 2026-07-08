@@ -129,7 +129,7 @@ quest lint --all
 quest list --ready
 ```
 
-Work the quest **in-session** with the skill:
+Work one small quest **in-session** with the skill:
 
 ```
 $quest:work 12
@@ -153,8 +153,9 @@ $quest:orchestrate
 In Codex, the orchestrator sets a wave-level `create_goal`, then spawns native
 `quest-executor` / `quest-reviewer` subagents with their own quest-level goals.
 In Claude Code, the same flow uses `/goal` and the same bundled subagents. If a
-Codex native subagent surface is unavailable, use the headless fallback with
-goal mode required:
+Codex native subagent surface is unavailable after `tool_search`, or if you
+explicitly want headless/background execution, use the fallback with goal mode
+required:
 
 ```bash
 quest-run 12 --worker codex --codex-goal-mode require
@@ -163,7 +164,8 @@ quest-run 12 --worker codex --codex-goal-mode require
 When a `$quest:plan` result is accepted from Plan Mode, the parent agent should
 stay the orchestrator: create/lint quest records if needed, set the wave goal,
 spawn subagents, verify checkpoints, and rule on reviewer findings. Product
-implementation belongs to the spawned executor for each quest.
+implementation belongs to the spawned executor for each quest, not to the parent
+session via `$quest:work`.
 
 Each iteration ends by recording evidence — a checkpoint a fresh session can
 resume from:

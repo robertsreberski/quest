@@ -1,6 +1,6 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, delimiter } from "node:path";
 import { run } from "../lib/cli.mjs";
@@ -17,6 +17,14 @@ beforeEach(() => {
 });
 
 const CREATE = ["create", "--title", "Demo quest", "--objective", "Prove the CLI works.", "--done-when", "lifecycle test passes", "--validation", "npm test"];
+
+function writeQuestShim(dir, version) {
+  mkdirSync(dir, { recursive: true });
+  const path = join(dir, "quest");
+  writeFileSync(path, `#!/usr/bin/env sh\necho ${version}\n`);
+  chmodSync(path, 0o755);
+  return dir;
+}
 
 function snap(name) {
   return readFileSync(join(SNAP, name), "utf8").trimEnd();
@@ -46,7 +54,7 @@ test("unknown command exits 2 with a hint", async () => {
 
 test("--version reports the package version", async () => {
   assert.equal(await run(["--version"], io), 0);
-  assert.equal(out[0], "0.3.1");
+  assert.equal(out[0], "0.3.2");
 });
 
 test("codex install-agents installs native project agents idempotently", async () => {
@@ -117,13 +125,53 @@ test("codex doctor verifies CLI/plugin/hooks/skills/agents from native surfaces"
   assert.equal(result.ok, true);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["version-sync"].ok, true);
+  assert.equal(byName["quest-cli-path"].ok, true);
   assert.equal(byName["plugin-installed"].ok, true);
+  assert.equal(byName["plugin-version"].ok, true);
   assert.equal(byName["multi-agent-feature"].ok, true);
   assert.match(byName["multi-agent-feature"].detail, /native Codex quest-executor dispatch available/);
   assert.equal(byName["goals-feature"].ok, true);
   assert.match(byName["goals-feature"].detail, /create_goal\/get_goal/);
   assert.equal(byName["single-neutral-skill-root"].ok, true);
   assert.equal(byName["native-agents"].ok, true);
+});
+
+test("codex doctor fails when quest on PATH is stale", async () => {
+  assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 0);
+  out.length = 0;
+  const staleDir = writeQuestShim(join(cwd, "stale-bin"), "0.3.0");
+  const codexIo = { ...io, env: { PATH: `${staleDir}${delimiter}${SHIMS}${delimiter}${process.env.PATH}` } };
+  assert.equal(await run(["codex", "doctor", "--json"], codexIo), 1);
+  const result = JSON.parse(out[0]);
+  const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
+  assert.equal(byName["quest-cli-path"].ok, false);
+  assert.match(byName["quest-cli-path"].detail, /quest on PATH=0\.3\.0, package=0\.3\.2/);
+  assert.match(byName["quest-cli-path"].detail, /npm install -g quest-loop@0\.3\.2/);
+});
+
+test("codex doctor fails with upgrade hint when installed plugin is stale", async () => {
+  assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 0);
+  out.length = 0;
+  const codexIo = { ...io, env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}`, QUEST_SHIM_PLUGIN_VERSION: "0.3.0" } };
+  assert.equal(await run(["codex", "doctor", "--json"], codexIo), 1);
+  const result = JSON.parse(out[0]);
+  const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
+  assert.equal(byName["plugin-version"].ok, false);
+  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.2/);
+  assert.match(byName["plugin-version"].detail, /codex plugin marketplace upgrade quest/);
+});
+
+test("codex doctor fails when prompt-input exposes duplicate quest skill roots", async () => {
+  assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 0);
+  out.length = 0;
+  const codexIo = { ...io, env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}`, QUEST_SHIM_DUPLICATE_SKILL_ROOTS: "true" } };
+  assert.equal(await run(["codex", "doctor", "--json"], codexIo), 1);
+  const result = JSON.parse(out[0]);
+  const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
+  assert.equal(byName["single-neutral-skill-root"].ok, false);
+  assert.deepEqual(byName["single-neutral-skill-root"].duplicate_skills, ["orchestrate", "plan", "protocol", "retro", "work"]);
+  assert.equal(byName["single-neutral-skill-root"].skill_roots.length, 2);
+  assert.match(byName["single-neutral-skill-root"].detail, /duplicate skill names/);
 });
 
 test("codex doctor reports quest-run fallback when Codex multi_agent is disabled", async () => {

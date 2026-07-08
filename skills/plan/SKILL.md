@@ -28,14 +28,21 @@ In Codex Plan Mode, do **not** implement product code after the user accepts a
 plan. Your role is to make the quest records real, then ask before orchestration:
 
 1. Create or confirm the quest records with `quest create` and `quest lint`.
-2. Ask the user directly whether to enter `$quest:orchestrate` and dispatch the
-   ready quests now. Do not silently switch modes.
-3. If the user says yes, switch to `$quest:orchestrate`, set the orchestrator
-   goal for the wave, then spawn goal-mode workers. If not, stop after listing
-   the ready quest ids and validation commands.
+2. If the user accepted a plan and asked to implement it, your next role is
+   `$quest:orchestrate`, not `$quest:work`. Do not start editing product code in
+   the parent session.
+3. If the user only asked to create quests, ask whether to enter
+   `$quest:orchestrate` and dispatch the ready quests now. Do not silently
+   switch modes.
+4. In `$quest:orchestrate`, set the orchestrator goal for the wave, then spawn
+   goal-mode workers. If the user declines orchestration, stop after listing the
+   ready quest ids and validation commands.
 
 The parent session owns dispatch, checkpoint verification, reviewer rulings, and
 epic closure. The spawned executor owns implementation for exactly one quest.
+The parent session never uses `$quest:work <id>` after a Plan Mode handoff
+unless the user explicitly asks to bypass orchestration for a genuinely small
+single quest.
 
 For epics: create the parent first, then children with `--parent <id>` and
 `--depends-on` expressing the real order. `quest list --ready` becomes the
@@ -95,5 +102,5 @@ quest lint 12   # always, before dispatch
 ```
 
 **Next:** dispatch with `$quest:orchestrate`. Only work it yourself via
-`$quest:work <id>` for genuinely small inline work outside Plan Mode. Rules and
-vocabulary: `$quest:protocol`.
+`$quest:work <id>` for genuinely small inline work outside Plan Mode and outside
+an accepted Plan Mode handoff. Rules and vocabulary: `$quest:protocol`.

@@ -17,9 +17,10 @@ if (!scenarioPath) {
     process.exit(0);
   }
   if (argv.join(" ") === "plugin list --json") {
+    const pluginVersion = process.env.QUEST_SHIM_PLUGIN_VERSION || "0.3.2";
     process.stdout.write(JSON.stringify({
       installed: [
-        { pluginId: "quest@quest", name: "quest", marketplaceName: "quest", version: "0.3.1", installed: true, enabled: true },
+        { pluginId: "quest@quest", name: "quest", marketplaceName: "quest", version: pluginVersion, installed: true, enabled: true },
       ],
       available: [],
     }) + "\n");
@@ -35,7 +36,19 @@ if (!scenarioPath) {
     process.exit(0);
   }
   if (argv.join(" ") === "debug prompt-input noop") {
-    const root = "/tmp/codex-plugin-cache/quest/quest/0.3.1";
+    const roots = process.env.QUEST_SHIM_DUPLICATE_SKILL_ROOTS === "true"
+      ? ["/tmp/checkout/quest", "/tmp/codex-plugin-cache/quest/quest/0.3.0"]
+      : ["/tmp/codex-plugin-cache/quest/quest/0.3.2"];
+    const lines = ["### Available skills"];
+    for (const root of roots) {
+      lines.push(
+        `- quest:orchestrate: Run the quest loop. (file: ${root}/skills/orchestrate/SKILL.md)`,
+        `- quest:plan: Plan quests. (file: ${root}/skills/plan/SKILL.md)`,
+        `- quest:protocol: Quest protocol. (file: ${root}/skills/protocol/SKILL.md)`,
+        `- quest:retro: Quest retro. (file: ${root}/skills/retro/SKILL.md)`,
+        `- quest:work: Work a quest. (file: ${root}/skills/work/SKILL.md)`,
+      );
+    }
     process.stdout.write(JSON.stringify([
       {
         type: "message",
@@ -43,14 +56,7 @@ if (!scenarioPath) {
         content: [
           {
             type: "input_text",
-            text: [
-              "### Available skills",
-              `- quest:orchestrate: Run the quest loop. (file: ${root}/skills/orchestrate/SKILL.md)`,
-              `- quest:plan: Plan quests. (file: ${root}/skills/plan/SKILL.md)`,
-              `- quest:protocol: Quest protocol. (file: ${root}/skills/protocol/SKILL.md)`,
-              `- quest:retro: Quest retro. (file: ${root}/skills/retro/SKILL.md)`,
-              `- quest:work: Work a quest. (file: ${root}/skills/work/SKILL.md)`,
-            ].join("\n"),
+            text: lines.join("\n"),
           },
         ],
       },

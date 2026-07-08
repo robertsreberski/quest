@@ -19,6 +19,9 @@ test("orchestrate documents native subagents and goal-mode fallbacks for Codex a
   assert.match(text, /update_goal/);
   assert.match(text, /--codex-goal-mode require/);
   assert.match(text, /Do not implement product code inline/);
+  assert.match(text, /default path is native subagents/);
+  assert.match(text, /If `spawn_agent` is not visible, call `tool_search` once/);
+  assert.match(text, /Use `quest-run` only when native subagents are still unavailable/);
   assert.match(text, /every quest in the scoped wave shows complete, blocked, or cancelled in\s+`quest list --json` output/);
   assert.match(text, /every quest in this wave shows complete, blocked, or cancelled in `quest list --json` output/);
   assert.doesNotMatch(text, /quest_status is [^`\n]*cancelled/);
@@ -30,9 +33,11 @@ test("plan skill hands accepted Plan Mode work to orchestrate", () => {
   assert.match(text, /Codex Plan Mode/);
   assert.match(text, /do \*\*not\*\* implement product code/);
   assert.match(text, /\$quest:orchestrate/);
-  assert.match(text, /Ask the user directly whether to enter `\$quest:orchestrate`/);
-  assert.match(text, /Do not silently switch modes/);
-  assert.match(text, /spawn goal-mode workers/);
+  assert.match(text, /asked to implement it, your next role is\s+`\$quest:orchestrate`, not `\$quest:work`/);
+  assert.match(text, /If the user only asked to create quests, ask whether to enter\s+`\$quest:orchestrate`/);
+  assert.match(text, /Do not silently\s+switch modes/);
+  assert.match(text, /spawn\s+goal-mode workers/);
+  assert.match(text, /parent session never uses `\$quest:work <id>` after a Plan Mode handoff/);
   assert.match(text, /always specify all three explicitly/);
   assert.match(text, /`--worker`, `--model`, and `--effort`/);
   assert.match(text, /quest create --worker codex --model gpt-5\.5 --effort medium --max-iterations 4/);
