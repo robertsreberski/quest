@@ -1,7 +1,7 @@
 ---
 id: 27
 title: Align Quest skills with v2 operator workflow
-status: todo
+status: complete
 priority: p1
 worker: codex
 model: gpt-5.5
@@ -10,7 +10,7 @@ max_iterations: 3
 parent: 21
 depends_on: [22, 23, 24, 25, 26]
 created: 2026-07-08T21:51:40Z
-updated: 2026-07-08T21:51:40Z
+updated: 2026-07-08T21:53:40Z
 ---
 
 # Align Quest skills with v2 operator workflow
@@ -46,3 +46,11 @@ Epic #21 audit found skills/orchestrate/SKILL.md and skills/plan/SKILL.md still 
 - new CLI features or README rewrites
 
 ## Checkpoints
+
+<!-- quest:checkpoint -->
+### 2026-07-08T21:53:40Z — quest_status: complete
+- iteration: 1
+- changed: M1 complete: orchestrate and plan skills now document queue state, worker_ready dispatch, inline epic closure, ready shortcut, and PATH verification; M2 not needed: tests did not assert old wording
+- validation_summary: `npm test` -> 158 passed, 0 failed; `npm run check:hygiene` -> hygiene: OK; `npm run check:manifests` -> validate-manifests: OK (3 manifests and hook config valid)
+
+Done when: skills/orchestrate/SKILL.md explains quest list --queue --json, worker_ready dispatch, inline_close_ready_epics closure, and quest list --ready shortcut; skills/plan/SKILL.md describes wave ordering with quest list --queue and worker_ready semantics; both skills mention ./bin/quest or verified PATH with quest --version; npm test, npm run check:hygiene, and npm run check:manifests pass.
