@@ -523,6 +523,8 @@ test("provider work --dry-run runs health gate and prints exact native handoffs"
       stderr: (s) => err.push(s),
     };
 
+    assert.equal(await run([provider, "install-agents", "--scope", "project"], providerIo), 0);
+    providerOut.length = 0;
     assert.equal(await run([provider, "work", "23", "--dry-run"], providerIo), 0);
     const text = providerOut.join("\n");
     assert.match(text, new RegExp(`${provider} work: health OK`));
@@ -536,6 +538,30 @@ test("provider work --dry-run runs health gate and prints exact native handoffs"
       assert.match(text, /\/goal quest 23 has a new checkpoint/);
       assert.match(text, /Work quest 23 per \$quest:work/);
     }
+  }
+});
+
+test("provider work --dry-run is read-only when native agent templates are missing", async () => {
+  for (const provider of ["codex", "claude"]) {
+    const providerCwd = mkdtempSync(join(tmpdir(), `quest-${provider}-work-readonly-`));
+    const providerOut = [];
+    const providerErr = [];
+    const providerIo = {
+      cwd: providerCwd,
+      env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}` },
+      stdout: (s) => providerOut.push(s),
+      stderr: (s) => providerErr.push(s),
+    };
+
+    assert.equal(await run([provider, "work", "23", "--dry-run"], providerIo), 1);
+    const text = providerOut.join("\n");
+    assert.match(text, /ERR native-agents:/);
+    assert.match(text, /not printing a handoff because doctor still reports setup problems/);
+    assert.doesNotMatch(text, /agent_type: quest-executor/);
+    assert.equal(existsSync(join(providerCwd, ".codex", "agents", "quest-executor.toml")), false);
+    assert.equal(existsSync(join(providerCwd, ".codex", "agents", "quest-reviewer.toml")), false);
+    assert.equal(existsSync(join(providerCwd, ".claude", "agents", "quest-executor.md")), false);
+    assert.equal(existsSync(join(providerCwd, ".claude", "agents", "quest-reviewer.md")), false);
   }
 });
 
