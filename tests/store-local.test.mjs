@@ -85,12 +85,28 @@ test("epic gate: a parent is absent from --ready until every child is terminal; 
   const ready0 = local.readyQuests(storeDir).map((q) => q.id);
   assert.deepEqual(ready0, [childA.id, childB.id]);
 
-  // Complete one child, cancel the other → both terminal → epic becomes ready.
+  // Complete one child, cancel the other → both terminal → epic is inline-close-ready, not worker-ready.
   local.startQuest(storeDir, childA.id);
   local.appendCheckpoint(storeDir, childA.id, { quest_status: "complete", iteration: 1, changed: "done", validation_summary: "`ok`" });
   assert.ok(!local.readyQuests(storeDir).some((q) => q.id === epic.id), "epic ready with one child still open");
   local.cancelQuest(storeDir, childB.id, "descoped");
-  assert.ok(local.readyQuests(storeDir).some((q) => q.id === epic.id), "cancelled child must not wedge the epic forever");
+  assert.ok(!local.readyQuests(storeDir).some((q) => q.id === epic.id), "epic must not be worker-dispatchable");
+  assert.ok(local.queueState(storeDir).inlineCloseReadyEpics.some((q) => q.id === epic.id), "cancelled child must not wedge inline epic closure");
+});
+
+test("queue state separates worker-ready, inline-close-ready epics, and blocked reasons", () => {
+  const dep = local.createQuest(storeDir, DEFAULTS, { title: "Dependency" }, SECTIONS);
+  const blocked = local.createQuest(storeDir, DEFAULTS, { title: "Blocked child", depends_on: [dep.id] }, SECTIONS);
+  const worker = local.createQuest(storeDir, DEFAULTS, { title: "Worker ready", priority: "p0" }, SECTIONS);
+  const epic = local.createQuest(storeDir, DEFAULTS, { title: "Inline epic" }, SECTIONS);
+  const child = local.createQuest(storeDir, DEFAULTS, { title: "Inline child", parent: epic.id }, SECTIONS);
+  local.startQuest(storeDir, child.id);
+  local.appendCheckpoint(storeDir, child.id, { quest_status: "complete", iteration: 1, changed: "done", validation_summary: "`ok`" });
+
+  const queue = local.queueState(storeDir);
+  assert.deepEqual(queue.workerReady.map((q) => q.id), [worker.id, dep.id]);
+  assert.deepEqual(queue.inlineCloseReadyEpics.map((q) => q.id), [epic.id]);
+  assert.equal(queue.blocked.find((b) => b.quest.id === blocked.id).reasons[0], `incomplete depends_on: #${dep.id}`);
 });
 
 test("create rejects unknown depends_on and parent", () => {
@@ -180,6 +196,20 @@ test("malformed hand-edit fails lint with a precise error", () => {
   assert.equal(results.length, 1);
   assert.match(results[0].problems[0], /no value|key: value/);
   assert.throws(() => local.loadQuest(storeDir, id), ContractError);
+});
+
+test("lintAll reports hand-corrupted missing parent and dependency references", () => {
+  const parent = local.createQuest(storeDir, DEFAULTS, { title: "Real parent" }, SECTIONS);
+  const child = local.createQuest(storeDir, DEFAULTS, { title: "Corrupt child", parent: parent.id }, SECTIONS);
+  const dep = local.createQuest(storeDir, DEFAULTS, { title: "Real dep" }, SECTIONS);
+  const gated = local.createQuest(storeDir, DEFAULTS, { title: "Corrupt dep", depends_on: [dep.id] }, SECTIONS);
+
+  writeFileSync(child.path, readFileSync(child.path, "utf8").replace(`parent: ${parent.id}`, "parent: 999"));
+  writeFileSync(gated.path, readFileSync(gated.path, "utf8").replace(`depends_on: [${dep.id}]`, "depends_on: [998]"));
+
+  const problems = local.lintAll(storeDir).flatMap((r) => r.problems);
+  assert.ok(problems.includes("parent references unknown quest 999"));
+  assert.ok(problems.includes("depends_on references unknown quest 998"));
 });
 
 test("amendments number sequentially", () => {

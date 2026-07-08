@@ -634,6 +634,25 @@ test("bare quest with a store shows the overview", async () => {
   assert.match(text, /Demo quest/);
 });
 
+test("list --queue exposes inline-close-ready epics without list --ready dispatchability", async () => {
+  await run(["init"], io);
+  await run([...CREATE, "--title", "Epic"], io); // #1
+  await run([...CREATE, "--title", "Child", "--parent", "1"], io); // #2
+  await run(["start", "2"], io);
+  await run(["checkpoint", "2", "--status", "complete", "--summary", "child done", "--validation", "`npm test` → green"], io);
+
+  out.length = 0;
+  assert.equal(await run(["list", "--ready", "--json"], io), 0);
+  assert.deepEqual(JSON.parse(out[0]).map((q) => q.id), []);
+
+  out.length = 0;
+  assert.equal(await run(["list", "--queue", "--json"], io), 0);
+  const queue = JSON.parse(out[0]);
+  assert.deepEqual(queue.worker_ready.map((q) => q.id), []);
+  assert.deepEqual(queue.inline_close_ready_epics.map((q) => q.id), [1]);
+  assert.deepEqual(queue.blocked, []);
+});
+
 test("unknown quest id exits 4", async () => {
   await run(["init"], io);
   assert.equal(await run(["show", "9"], io), 4);

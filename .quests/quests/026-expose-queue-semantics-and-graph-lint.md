@@ -1,7 +1,7 @@
 ---
 id: 26
 title: Expose queue semantics and graph lint
-status: todo
+status: in_progress
 priority: p1
 worker: codex
 model: gpt-5.5
@@ -10,7 +10,7 @@ max_iterations: 5
 parent: 21
 depends_on: [22, 25]
 created: 2026-07-08T21:20:42Z
-updated: 2026-07-08T21:20:42Z
+updated: 2026-07-08T21:38:58Z
 ---
 
 # Expose queue semantics and graph lint

@@ -4,7 +4,7 @@
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { run } from "../lib/cli.mjs";
@@ -178,7 +178,7 @@ test("child quest links into the parent's ## Children task list", async () => {
   assert.match(state.issues["2"].body, /parent: 1/);
 });
 
-test("epic gate: parent absent from --ready until children terminal; cancelled child unblocks it (github parity)", async () => {
+test("queue state separates worker-ready quests from inline-close-ready epics (github parity)", async () => {
   await run(["init", "--backend", "github", "--repo", "o/r"], io());
   await run(CREATE, io()); // epic = #1
   await run([...CREATE, "--title", "Child one", "--parent", "1"], io()); // #2
@@ -189,16 +189,38 @@ test("epic gate: parent absent from --ready until children terminal; cancelled c
     await run(["list", "--ready", "--json"], io());
     return JSON.parse(out[0]).map((q) => q.id);
   };
+  const queue = async () => {
+    out.length = 0;
+    await run(["list", "--queue", "--json"], io());
+    return JSON.parse(out[0]);
+  };
 
   // Both children open → epic gated out; children themselves are ready.
   assert.deepEqual(await readyIds(), [2, 3]);
 
-  // Complete one child, cancel the other → both terminal → epic becomes ready.
+  // Complete one child, cancel the other → both terminal → epic is inline-close-ready, not worker-ready.
   await run(["start", "2"], io());
   await run(["checkpoint", "2", "--status", "complete", "--summary", "done", "--validation", "`node --test` → green"], io());
   assert.ok(!(await readyIds()).includes(1), "epic ready with one child still open");
   await run(["cancel", "3", "--reason", "descoped"], io());
-  assert.ok((await readyIds()).includes(1), "cancelled child must not wedge the epic forever");
+  assert.ok(!(await readyIds()).includes(1), "epic must not be worker-dispatchable");
+  assert.deepEqual((await queue()).inline_close_ready_epics.map((q) => q.id), [1], "cancelled child must not wedge inline epic closure");
+});
+
+test("github lint --all reports hand-corrupted missing parent and dependency references", async () => {
+  await run(["init", "--backend", "github", "--repo", "o/r"], io());
+  await run(CREATE, io()); // #1
+  await run([...CREATE, "--title", "Child quest", "--parent", "1"], io()); // #2
+  await run([...CREATE, "--title", "Dependency", "--depends-on", "1"], io()); // #3
+
+  const state = JSON.parse(readFileSync(statePath, "utf8"));
+  state.issues["2"].body = state.issues["2"].body.replace("parent: 1", "parent: 999");
+  state.issues["3"].body = state.issues["3"].body.replace("depends_on: [1]", "depends_on: [998]");
+  writeFileSync(statePath, JSON.stringify(state));
+
+  assert.equal(await run(["lint", "--all"], io()), 5);
+  assert.match(err.join("\n"), /parent references unknown quest 999/);
+  assert.match(err.join("\n"), /depends_on references unknown quest 998/);
 });
 
 test("missing gh exits 6 and never falls back to local", async () => {

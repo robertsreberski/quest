@@ -488,18 +488,19 @@ test("--ready never auto-dispatches an epic — no run_started for it, stderr sa
   await createQuest("claude", [], "Epic parent"); // #1
   await createQuest("claude", ["--parent", "1"], "Only child"); // #2
   // Complete the child so the epic's children are all terminal and the epic
-  // itself becomes "ready" — this is exactly the case --ready must still skip.
+  // becomes inline-close-ready — this is exactly the case --ready must still skip.
   local.startQuest(storeDir, 2);
   local.appendCheckpoint(storeDir, 2, { quest_status: "complete", iteration: 1, changed: "done", validation_summary: "`ok`" });
-  assert.deepEqual(local.readyQuests(storeDir).map((q) => q.id), [1], "epic is the only ready quest");
+  assert.deepEqual(local.readyQuests(storeDir).map((q) => q.id), [], "epic is not worker-ready");
+  assert.deepEqual(local.queueState(storeDir).inlineCloseReadyEpics.map((q) => q.id), [1], "epic is inline-close-ready");
 
   const { io, err } = runnerIo();
   const code = await runnerRun(["--ready"], io);
   assert.equal(code, 0);
   // The runner started no worker run for the epic.
   assert.ok(!runsEvents().some((e) => e.event === "run_started" && e.quest === 1), "epic must not be dispatched");
-  // The skip line names it as an epic and points at the orchestrate skill.
-  assert.match(err.join("\n"), /is an epic/);
+  // The skip line names it as an inline-close-ready epic and points at the orchestrate skill.
+  assert.match(err.join("\n"), /inline-close-ready epic/);
   // Direct dispatch stays allowed: quest-run <id> on the epic runs it (the
   // shim drives it to complete), proving the block is --ready-only.
   writeScenario({ sessions: ["complete"], questId: 1 });
