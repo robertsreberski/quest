@@ -81,8 +81,7 @@ trails, and escalations only where a human ruling is genuinely needed.
    - **escalate-to-human** — surface human-only decisions verbatim. Never
      guess a ruling the human should make.
 7. **Wave done?** When `quest list --queue --json` shows no `worker_ready` or
-   `inline_close_ready_epics`, and nothing is in flight, run `$quest:retro`
-   before starting the next wave.
+   `inline_close_ready_epics`, and nothing is in flight, run `$quest:retro` (read skill `$quest:retro`) before starting the next wave.
 
 ## Closing an epic
 
