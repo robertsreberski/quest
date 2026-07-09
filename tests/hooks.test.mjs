@@ -6,7 +6,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { run } from "../lib/cli.mjs";
@@ -24,6 +24,7 @@ const CODEX_COMMAND_TRANSCRIPT = new URL("./fixtures/codex-command-execution-tra
 const CODEX_GREP_TRANSCRIPT = new URL("./fixtures/codex-grep-false-positive-transcript.jsonl", import.meta.url).pathname;
 const CODEX_MSG_WRAPPED_TRANSCRIPT = new URL("./fixtures/codex-msg-wrapped-transcript.jsonl", import.meta.url).pathname;
 const CODEX_QUOTED_SEP_TRANSCRIPT = new URL("./fixtures/codex-quoted-separator-transcript.jsonl", import.meta.url).pathname;
+const NATIVE_EXECUTOR_NO_COMMAND_TRANSCRIPT = new URL("./fixtures/native-executor-no-command-transcript.jsonl", import.meta.url).pathname;
 
 // Clean env: strip QUEST_DIR/QUEST_BACKEND so store discovery is driven purely by
 // the payload cwd, matching how the hook runs inside a real session.
@@ -211,6 +212,64 @@ test("SubagentStop: a separator inside quotes does not forge a command head", as
   assert.equal(res.stdout.trim(), "", "`echo 'done; quest checkpoint 1'` is not a quest invocation → allowed silently");
 });
 
+test("SubagentStop: native quest-executor launch keys detection before mutating commands", async () => {
+  await seedQuest(); // quest 1, in_progress, zero checkpoints
+  const res = fire(SUBAGENT_STOP, {
+    ...stopPayload(NATIVE_EXECUTOR_NO_COMMAND_TRANSCRIPT),
+    agent_type: "quest-executor",
+    prompt: "First call create_goal with: quest 1 has a new checkpoint whose quest_status is complete or blocked in `quest show 1 --json`; verify with get_goal; work quest 1 per $quest:work; only call update_goal(status=\"complete\") after the checkpoint exists.",
+  });
+  assert.equal(res.status, 0);
+  const decision = JSON.parse(res.stdout.trim());
+  assert.equal(decision.decision, "block");
+  assert.equal(
+    decision.reason,
+    "quest 1: record a checkpoint via `quest checkpoint 1` before stopping (protocol: no stop without a checkpoint)",
+  );
+});
+
+test("SubagentStop: native agent payload without an explicit executor quest id is allowed silently", async () => {
+  await seedQuest(); // quest 1, in_progress, zero checkpoints — would block if detected
+  const reviewer = fire(SUBAGENT_STOP, {
+    ...stopPayload(NATIVE_EXECUTOR_NO_COMMAND_TRANSCRIPT),
+    agent_type: "quest-reviewer",
+    prompt: "Review quest 1 and report findings.",
+  });
+  assert.equal(reviewer.status, 0);
+  assert.equal(reviewer.stdout.trim(), "");
+
+  const missingPrompt = fire(SUBAGENT_STOP, {
+    ...stopPayload(NATIVE_EXECUTOR_NO_COMMAND_TRANSCRIPT),
+    agent_type: "quest-executor",
+  });
+  assert.equal(missingPrompt.status, 0);
+  assert.equal(missingPrompt.stdout.trim(), "");
+});
+
+test("SubagentStop: missing transcript input is allowed silently", () => {
+  const res = fire(SUBAGENT_STOP, {
+    session_id: "s1",
+    cwd,
+    hook_event_name: "SubagentStop",
+    agent_id: "sub-1",
+    agent_type: "quest-executor",
+  });
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+});
+
+test("SubagentStop: unknown store is allowed silently", () => {
+  const bare = mkdtempSync(join(tmpdir(), "quest-no-store-"));
+  const res = fire(SUBAGENT_STOP, {
+    ...stopPayload(EXECUTOR_TRANSCRIPT),
+    cwd: bare,
+  });
+  assert.equal(res.status, 0);
+  assert.equal(res.stdout, "");
+  assert.equal(res.stderr, "");
+});
+
 // (c) a subagent whose transcript has no marker is never touched.
 test("SubagentStop: an unrelated subagent is allowed silently", async () => {
   await seedQuest();
@@ -226,6 +285,7 @@ test("SubagentStop: marker for an unknown quest allows (no false block)", async 
   const res = fire(SUBAGENT_STOP, stopPayload(EXECUTOR_TRANSCRIPT));
   assert.equal(res.status, 0);
   assert.equal(res.stdout.trim(), "");
+  assert.equal(res.stderr, "");
 });
 
 // (d) SessionStart with no store anywhere upward → silent, exit 0.
@@ -243,7 +303,26 @@ test("SessionStart: seeded store injects counts and the in-flight quest", async 
   assert.equal(res.status, 0);
   assert.match(res.stdout, /in_progress/);
   assert.match(res.stdout, /Ship the widget/);
-  assert.match(res.stdout, /quest list --ready/);
+  assert.match(res.stdout, /Next: run `quest show 1 --json`/);
+});
+
+test("SessionStart: empty local store injects a create next action", async () => {
+  await run(["init"], io);
+  const res = fire(SESSION_START, { session_id: "s1", cwd, hook_event_name: "SessionStart", source: "startup" });
+  assert.equal(res.status, 0);
+  assert.match(res.stdout, /local backend, no quests/);
+  assert.match(res.stdout, /Next: run `quest create --help`/);
+});
+
+test("SessionStart: github store injects a no-network live-state hint", async () => {
+  await run(["init"], io);
+  writeFileSync(join(cwd, ".quests", "config.json"), JSON.stringify({ backend: "github", github: { repo: "o/r" } }, null, 2) + "\n");
+  const res = fire(SESSION_START, { session_id: "s1", cwd, hook_event_name: "SessionStart", source: "startup" });
+  assert.equal(res.status, 0);
+  assert.match(res.stdout, /github backend for o\/r/);
+  assert.match(res.stdout, /No GitHub request was made by this hook/);
+  assert.match(res.stdout, /Next: run `quest list --ready`/);
+  assert.equal(res.stderr, "");
 });
 
 test("PlanExitReminder: ExitPlanMode Quest handoff emits orchestration reminder", () => {

@@ -4,22 +4,30 @@ Work is planned as quests: contracts with an Objective, evidence-checkable
 "Done when" items, and a Validation loop. Agents (or you) work them in
 iterations that end in checkpoints; `quest-run` drives headless workers.
 
-Commands:
+Commands by workflow:
+
+Setup and authoring:
   quest init        Create a quest store (.quests/) and install project agent templates
   quest create      Create a new quest (the only way records are born)
+  quest edit        Compatibly expand a quest (additions only; anchors are immutable)
+  quest lint        Check records against the contract spec
+  quest protocol    Print the loop protocol + this store's local amendments
+
+Queue and work:
   quest list        List quests (filter by status, parent, or readiness)
   quest show        Show a quest record in full
   quest start       Mark a quest in_progress (todo → in_progress)
   quest checkpoint  Record iteration evidence and drive the quest's status
+  quest runs        Show headless runner activity (from .quests/runs.ndjson)
+
+Lifecycle:
   quest cancel      Cancel a quest (terminal; reason is recorded)
   quest reopen      Reopen a complete quest back into the loop (complete → in_progress)
-  quest edit        Compatibly expand a quest (additions only; anchors are immutable)
-  quest lint        Check records against the contract spec
   quest amend       Append a numbered protocol amendment (retro output)
-  quest protocol    Print the loop protocol + this store's local amendments
-  quest runs        Show headless runner activity (from .quests/runs.ndjson)
-  quest codex       Inspect, repair, install, or open Quest's native Codex integration
-  quest claude      Inspect, repair, install, or open Quest's native Claude Code integration
+
+Provider handoff:
+  quest codex       Inspect, repair, install, open, or hand off Quest's native Codex integration
+  quest claude      Inspect, repair, install, open, or hand off Quest's native Claude Code integration
 
 Run `quest <command> --help` for flags and a copy-pasteable example.
 Headless workers: see `quest-run --help`.

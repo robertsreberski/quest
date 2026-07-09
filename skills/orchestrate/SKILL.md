@@ -18,9 +18,16 @@ trails, and escalations only where a human ruling is genuinely needed.
 
 1. **Adopt state** (especially at session start):
    ```bash
-   quest list --ready --json   # the dispatch queue (deps met, priority order)
+   quest list --queue --json   # orchestration state: worker_ready + inline_close_ready_epics
    quest runs --active         # headless runners that outlived prior sessions
    ```
+   `worker_ready` is the worker dispatch queue (deps met, priority order);
+   `inline_close_ready_epics` is the set of epics you close yourself after
+   verifying children and the epic validation loop. `quest list --ready --json`
+   remains a dispatch-only shortcut for `worker_ready`.
+   When the checkout, plugin cache, and installed package may differ, run the
+   checkout binary (`./bin/quest`) or verify `PATH` with `quest --version`
+   before trusting queue or dispatch behavior.
    For an implementation accepted from `$quest:plan` in Codex Plan Mode, stay in
    this orchestrator role. Do not implement product code inline; create/lint the
    quest records if needed, then dispatch workers.
@@ -31,7 +38,7 @@ trails, and escalations only where a human ruling is genuinely needed.
    - In Claude Code, start the turn with `/goal` using the same condition.
    If native goal mode is unavailable, say so and keep the Quest checkpoint
    trail as the hard stop signal; do not pretend a goal was set.
-3. **Dispatch** each ready quest per its record:
+3. **Dispatch** each `worker_ready` quest per its record:
    - In Codex, the default path is native subagents for both serial and
      parallel waves. If `spawn_agent` is not visible, call `tool_search` once
      for subagent tools before choosing any fallback. When available, spawn:
@@ -73,16 +80,17 @@ trails, and escalations only where a human ruling is genuinely needed.
      re-parent the original honestly.
    - **escalate-to-human** — surface human-only decisions verbatim. Never
      guess a ruling the human should make.
-7. **Wave done?** When `quest list --ready` empties and nothing is in flight:
-   run `$quest:retro` before starting the next wave.
+7. **Wave done?** When `quest list --queue --json` shows no `worker_ready` or
+   `inline_close_ready_epics`, and nothing is in flight, run `$quest:retro` (read skill `$quest:retro`) before starting the next wave.
 
 ## Closing an epic
 
 An epic is an ordinary quest that other quests name as `parent`. It is **never
-dispatched to a worker**: `quest list --ready` gates it out while any child is
-non-terminal, and `quest-run --ready` refuses it even once every child is
-terminal (a direct `quest-run <id>` on an epic still runs, but don't — it burns
-a worker on pure verification). Close it inline yourself, spending zero worker
+dispatched to a worker**: it does not belong in `worker_ready`, and
+`quest-run --ready` refuses it even once every child is terminal (a direct
+`quest-run <id>` on an epic still runs, but don't — it burns a worker on pure
+verification). Once it is closeable, `quest list --queue --json` reports it in
+`inline_close_ready_epics`; close it inline yourself, spending zero worker
 tokens:
 
 1. **Verify the children are genuinely done:**
@@ -119,7 +127,8 @@ quest reopen <id> --reason "review found npm audit criticals after completion"
 This flips `complete → in_progress` and appends an audited checkpoint carrying
 `reopen_reason`, so the loop keeps custody of the defect trail. Then dispatch the
 quest directly by id (`quest-run <id>` or a `quest-executor` subagent) — reopened
-quests are `in_progress`, so they do **not** re-appear in `quest list --ready`.
+quests are `in_progress`, so they do **not** re-appear in `worker_ready` or
+`quest list --ready`.
 Reopening a child of a **complete** parent epic is allowed (a stderr warning, not
 a block); you then rule whether the epic's completion verdict is falsified and,
 if so, reopen the epic too. `cancelled` is fully terminal — file a new quest.
@@ -139,7 +148,7 @@ genuinely done.
 ## Worked example
 
 ```bash
-quest list --ready --json     # → [{"id":12,"worker":"claude"…},{"id":13,"worker":"codex"…}]
+quest list --queue --json     # → {"worker_ready":[{"id":12…},{"id":13…}],"inline_close_ready_epics":[]}
 # 12 → spawn quest-executor with a child /goal or create_goal prompt
 # 13 → spawn quest-executor too; use quest-run only if native subagents are unavailable
 # …executor stops →

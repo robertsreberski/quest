@@ -4,7 +4,28 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
-## Unreleased
+## [0.3.6] — 2026-07-09
+
+### Added
+- `quest list --queue` now exposes worker-ready quests, inline-close-ready epics,
+  and blocked queue reasons as separate orchestration queues.
+- `quest lint --all` now reports missing parent and `depends_on` references
+  across local and GitHub-backed stores.
+- Provider `work --dry-run` commands now print native subagent handoffs or the
+  `quest-run` fallback command after running setup health checks.
+
+### Changed
+- Session-start status output and command help are more concise and focused on
+  the next operator action.
+- `$quest:plan` and `$quest:orchestrate` now document the v2 queue workflow and
+  explicit provider/model/effort handoffs more precisely.
+
+### Fixed
+- Malformed hand-edited `depends_on` metadata now stays a normal contract or
+  queue-blocking problem instead of crashing graph lint or entering
+  `worker_ready`.
+- Headless Codex fallback handoff commands now quote Quest binary paths that
+  contain spaces.
 
 ## [0.3.5] — 2026-07-08
 

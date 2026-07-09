@@ -27,14 +27,16 @@ extra context.
 In Codex Plan Mode, do **not** implement product code after the user accepts a
 plan. The same parent agent/session that processes `$quest:plan` owns the
 handoff: make the quest records real, then adopt `$quest:orchestrate` by
-default.
+default when the user asks to implement the plan. The parent session never uses
+`$quest:work <id>` after a Plan Mode handoff unless the user explicitly asks to.
 
 1. Create or confirm the quest records with `quest create` and `quest lint`.
 2. If the user accepted a plan and asked to implement it, the same parent
    session becomes `$quest:orchestrate`, not `$quest:work`. Do not start editing
-   product code in the parent session.
-3. In `$quest:orchestrate`, set the orchestrator goal for the wave, then spawn
-   goal-mode workers.
+   product code in the parent session. Read skill `$quest:orchestrate` and follow its rules for dispatching workers and closing epics inline.
+3. In `$quest:orchestrate`, inspect `quest list --queue --json`, set the
+   orchestrator goal for the wave, then spawn goal-mode workers for
+   `worker_ready` quests.
 4. Stop after listing the ready quest ids and validation commands only when the
    user explicitly asked for create-only/no-dispatch behavior such as "only
    create quests", "do not dispatch", or "stop after planning".
@@ -46,8 +48,15 @@ unless the user explicitly asks to bypass orchestration for a genuinely small
 single quest.
 
 For epics: create the parent first, then children with `--parent <id>` and
-`--depends-on` expressing the real order. `quest list --ready` becomes the
-dispatch queue — that is the whole wave mechanic.
+`--depends-on` expressing the real order. `quest list --queue --json` shows the
+wave order: `worker_ready` quests are dispatched, and
+`inline_close_ready_epics` are closed inline by the orchestrator after children
+finish. `quest list --ready` remains only the dispatch shortcut for
+`worker_ready`.
+
+When local checkout, plugin cache, and installed package versions can differ,
+author and lint with the checkout binary (`./bin/quest`) or verify `PATH` with
+`quest --version` before relying on queue semantics or generated records.
 
 Keep the **epic itself thin**. Its Done-when is **integration-level only**: it
 checks that the children compose into a working whole (the end-to-end behavior,
@@ -104,4 +113,4 @@ quest lint 12   # always, before dispatch
 
 **Next:** dispatch with `$quest:orchestrate`. Only work it yourself via
 `$quest:work <id>` for genuinely small inline work outside Plan Mode and outside
-an accepted Plan Mode handoff. Rules and vocabulary: `$quest:protocol`.
+an accepted Plan Mode handoff, when user explicitly asked for it. Rules and vocabulary: `$quest:protocol`.

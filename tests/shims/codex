@@ -39,7 +39,7 @@ if (!scenarioPath) {
   if (argv.join(" ") === "plugin list --json") {
     const state = readState();
     const pluginMissing = process.env.QUEST_SHIM_PLUGIN_MISSING === "true" && !state.codexPluginInstalled;
-    const pluginVersion = state.codexPluginVersion || process.env.QUEST_SHIM_PLUGIN_VERSION || "0.3.5";
+    const pluginVersion = state.codexPluginVersion || process.env.QUEST_SHIM_PLUGIN_VERSION || "0.3.6";
     process.stdout.write(JSON.stringify({
       installed: pluginMissing ? [] : [
         { pluginId: "quest@quest", name: "quest", marketplaceName: "quest", version: pluginVersion, installed: true, enabled: true },
@@ -67,7 +67,7 @@ if (!scenarioPath) {
     process.exit(0);
   }
   if (argv.join(" ") === "plugin add quest@quest") {
-    writeState({ codexPluginInstalled: true, codexPluginVersion: "0.3.5" });
+    writeState({ codexPluginInstalled: true, codexPluginVersion: "0.3.6" });
     process.stdout.write("Installed quest@quest\n");
     process.exit(0);
   }
@@ -83,7 +83,7 @@ if (!scenarioPath) {
   if (argv.join(" ") === "debug prompt-input noop") {
     const roots = process.env.QUEST_SHIM_DUPLICATE_SKILL_ROOTS === "true"
       ? ["/tmp/checkout/quest", "/tmp/codex-plugin-cache/quest/quest/0.3.0"]
-      : ["/tmp/codex-plugin-cache/quest/quest/0.3.5"];
+      : ["/tmp/codex-plugin-cache/quest/quest/0.3.6"];
     const lines = ["### Available skills"];
     for (const root of roots) {
       lines.push(
@@ -133,7 +133,7 @@ function quest(args) {
 
 const emit = (obj) => process.stdout.write(JSON.stringify(obj) + "\n");
 
-emit({ type: "thread.started", thread_id: scenario.thread_id || "codex-thread-1" });
+if (!scenario.omit_thread_id) emit({ type: "thread.started", thread_id: scenario.thread_id || "codex-thread-1" });
 
 if (spec.createGoal) {
   emit({ type: "item.completed", item: { type: "mcp_tool_call", server: "goal", tool: "create_goal", status: "completed" } });

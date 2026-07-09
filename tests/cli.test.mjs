@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, delimiter } from "node:path";
+import { spawnSync } from "node:child_process";
 import { run } from "../lib/cli.mjs";
 
+const REPO_ROOT = new URL("../", import.meta.url).pathname;
 const SNAP = new URL("./snapshots/", import.meta.url).pathname;
 const SHIMS = new URL("./shims/", import.meta.url).pathname;
 
@@ -58,7 +60,7 @@ test("unknown command exits 2 with a hint", async () => {
 
 test("--version reports the package version", async () => {
   assert.equal(await run(["--version"], io), 0);
-  assert.equal(out[0], "0.3.5");
+  assert.equal(out[0], "0.3.6");
 });
 
 test("codex install-agents installs native project agents idempotently", async () => {
@@ -260,6 +262,9 @@ test("codex doctor verifies CLI/plugin/hooks/skills/agents from native surfaces"
   assert.match(byName["goals-feature"].detail, /create_goal\/get_goal/);
   assert.equal(byName["single-neutral-skill-root"].ok, true);
   assert.equal(byName["native-agents"].ok, true);
+  assert.equal(result.recommended_path.key, "native-subagents");
+  assert.equal(result.recommended_path.available, true);
+  assert.match(result.recommended_path.command, /quest codex work <id> --dry-run/);
 });
 
 test("claude doctor verifies CLI/plugin and native-agent templates", async () => {
@@ -276,6 +281,20 @@ test("claude doctor verifies CLI/plugin and native-agent templates", async () =>
   assert.equal(byName["plugin-installed"].ok, true);
   assert.equal(byName["plugin-version"].ok, true);
   assert.equal(byName["native-agents"].ok, true);
+  assert.equal(result.recommended_path.key, "native-subagents");
+  assert.equal(result.recommended_path.available, true);
+  assert.match(result.recommended_path.command, /quest claude work <id> --dry-run/);
+});
+
+test("doctor human output prints the same recommendation after checks", async () => {
+  assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 0);
+  out.length = 0;
+  const codexIo = { ...io, env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}` } };
+  assert.equal(await run(["codex", "doctor"], codexIo), 0);
+  const text = out.join("\n");
+  assert.match(text, /OK\s+multi-agent-feature:/);
+  assert.match(text, /Recommendation: native Codex quest-executor subagent/);
+  assert.match(text, /quest codex work <id> --dry-run/);
 });
 
 test("doctor --fix repairs missing and stale native agent templates for both providers", async () => {
@@ -329,7 +348,7 @@ test("codex doctor --fix bootstraps marketplace and repairs missing plugin state
     result.repairs.filter((r) => r.name.startsWith("plugin")).map((r) => r.name),
     ["plugin-marketplace-add", "plugin-marketplace-upgrade", "plugin-add"],
   );
-  assert.equal(JSON.parse(readFileSync(state, "utf8")).codexPluginVersion, "0.3.5");
+  assert.equal(JSON.parse(readFileSync(state, "utf8")).codexPluginVersion, "0.3.6");
 });
 
 test("claude doctor --fix repairs stale and missing plugin state", async () => {
@@ -374,7 +393,7 @@ test("claude doctor fails when installed plugin is stale", async () => {
   const result = JSON.parse(out[0]);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["plugin-version"].ok, false);
-  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.5/);
+  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.6/);
   assert.match(byName["plugin-version"].detail, /claude plugin update quest@quest/);
 });
 
@@ -387,8 +406,8 @@ test("codex doctor fails when quest on PATH is stale", async () => {
   const result = JSON.parse(out[0]);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["quest-cli-path"].ok, false);
-  assert.match(byName["quest-cli-path"].detail, /quest on PATH=0\.3\.0, package=0\.3\.5/);
-  assert.match(byName["quest-cli-path"].detail, /npm install -g quest-loop@0\.3\.5/);
+  assert.match(byName["quest-cli-path"].detail, /quest on PATH=0\.3\.0, package=0\.3\.6/);
+  assert.match(byName["quest-cli-path"].detail, /npm install -g quest-loop@0\.3\.6/);
 });
 
 test("codex doctor fails with upgrade hint when installed plugin is stale", async () => {
@@ -399,7 +418,7 @@ test("codex doctor fails with upgrade hint when installed plugin is stale", asyn
   const result = JSON.parse(out[0]);
   const byName = Object.fromEntries(result.checks.map((c) => [c.name, c]));
   assert.equal(byName["plugin-version"].ok, false);
-  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.5/);
+  assert.match(byName["plugin-version"].detail, /installed=0\.3\.0, manifest=0\.3\.6/);
   assert.match(byName["plugin-version"].detail, /codex plugin marketplace upgrade quest/);
 });
 
@@ -474,6 +493,31 @@ test("codex doctor reports quest-run fallback when Codex multi_agent is disabled
   assert.equal(byName["multi-agent-feature"].ok, false);
   assert.match(byName["multi-agent-feature"].detail, /use quest-run fallback/);
   assert.equal(byName["goals-feature"].ok, true);
+  assert.equal(result.recommended_path.key, "quest-run-goal-required");
+  assert.equal(result.recommended_path.available, true);
+  assert.match(result.recommended_path.command, /quest-run <id> --worker codex --codex-goal-mode require/);
+});
+
+test("codex doctor quotes quest-run fallback commands from plugin paths with spaces", () => {
+  const linkedRoot = join(cwd, "quest package with spaces");
+  const project = join(cwd, "project");
+  const script = join(cwd, "doctor-space-path.mjs");
+  symlinkSync(REPO_ROOT, linkedRoot, "dir");
+  mkdirSync(project);
+  writeFileSync(script, `
+import { delimiter } from "node:path";
+import { pathToFileURL } from "node:url";
+const moduleUrl = pathToFileURL(process.argv[2] + "/lib/codex-native.mjs").href;
+const { installAgents, doctor } = await import(moduleUrl);
+const env = { ...process.env, PATH: process.argv[4] + delimiter + process.env.PATH, QUEST_SHIM_MULTI_AGENT: "false" };
+installAgents({ scope: "project", cwd: process.argv[3], env });
+const result = doctor({ cwd: process.argv[3], env });
+process.stdout.write(result.recommended_path.command + "\\n");
+`);
+
+  const result = spawnSync(process.execPath, ["--preserve-symlinks", script, linkedRoot, project, SHIMS], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout.trim(), /^'.*quest package with spaces\/bin\/quest-run' <id> --worker codex --codex-goal-mode require$/);
 });
 
 test("codex doctor fails when Codex goals are disabled even if multi_agent is enabled", async () => {
@@ -487,6 +531,86 @@ test("codex doctor fails when Codex goals are disabled even if multi_agent is en
   assert.equal(byName["multi-agent-feature"].ok, true);
   assert.equal(byName["goals-feature"].ok, false);
   assert.match(byName["goals-feature"].detail, /requires create_goal\/get_goal/);
+  assert.equal(result.recommended_path.key, "quest-run-goal-auto");
+  assert.equal(result.recommended_path.available, true);
+  assert.match(result.recommended_path.command, /quest-run <id> --worker codex --codex-goal-mode auto/);
+});
+
+test("provider work --dry-run runs health gate and prints exact native handoffs", async () => {
+  for (const provider of ["codex", "claude"]) {
+    const providerCwd = mkdtempSync(join(tmpdir(), `quest-${provider}-work-`));
+    const providerOut = [];
+    const providerIo = {
+      cwd: providerCwd,
+      env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}` },
+      stdout: (s) => providerOut.push(s),
+      stderr: (s) => err.push(s),
+    };
+
+    assert.equal(await run([provider, "install-agents", "--scope", "project"], providerIo), 0);
+    providerOut.length = 0;
+    assert.equal(await run([provider, "work", "23", "--dry-run"], providerIo), 0);
+    const text = providerOut.join("\n");
+    assert.match(text, new RegExp(`${provider} work: health OK`));
+    assert.match(text, /Quest command prelude:/);
+    assert.match(text, /export PATH=.*\/bin:\$PATH/);
+    assert.match(text, /agent_type: quest-executor/);
+    if (provider === "codex") {
+      assert.match(text, /First call create_goal with: quest 23 has a new checkpoint/);
+      assert.match(text, /only call update_goal\(status="complete"\) after the checkpoint exists/);
+    } else {
+      assert.match(text, /\/goal quest 23 has a new checkpoint/);
+      assert.match(text, /Work quest 23 per \$quest:work/);
+    }
+  }
+});
+
+test("provider work --dry-run is read-only when native agent templates are missing", async () => {
+  for (const provider of ["codex", "claude"]) {
+    const providerCwd = mkdtempSync(join(tmpdir(), `quest-${provider}-work-readonly-`));
+    const providerOut = [];
+    const providerErr = [];
+    const providerIo = {
+      cwd: providerCwd,
+      env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}` },
+      stdout: (s) => providerOut.push(s),
+      stderr: (s) => providerErr.push(s),
+    };
+
+    assert.equal(await run([provider, "work", "23", "--dry-run"], providerIo), 1);
+    const text = providerOut.join("\n");
+    assert.match(text, /ERR native-agents:/);
+    assert.match(text, /not printing a handoff because doctor still reports setup problems/);
+    assert.doesNotMatch(text, /agent_type: quest-executor/);
+    assert.equal(existsSync(join(providerCwd, ".codex", "agents", "quest-executor.toml")), false);
+    assert.equal(existsSync(join(providerCwd, ".codex", "agents", "quest-reviewer.toml")), false);
+    assert.equal(existsSync(join(providerCwd, ".claude", "agents", "quest-executor.md")), false);
+    assert.equal(existsSync(join(providerCwd, ".claude", "agents", "quest-reviewer.md")), false);
+  }
+});
+
+test("codex work --dry-run prints runner fallback when native subagents are unavailable", async () => {
+  assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 0);
+  out.length = 0;
+  const codexIo = { ...io, env: { PATH: `${SHIMS}${delimiter}${process.env.PATH}`, QUEST_SHIM_MULTI_AGENT: "false" } };
+  assert.equal(await run(["codex", "work", "23", "--dry-run"], codexIo), 0);
+  const text = out.join("\n");
+  assert.match(text, /ERR multi-agent-feature:/);
+  assert.match(text, /recommended path: headless Codex runner fallback with required goal tools/);
+  assert.match(text, /quest-run 23 --worker codex --codex-goal-mode require/);
+  assert.doesNotMatch(text, /agent_type: quest-executor/);
+});
+
+test("provider work --dry-run refuses a handoff when setup health remains red", async () => {
+  const staleDir = writeQuestShim(join(cwd, "stale-bin"), "0.3.0");
+  const codexIo = { ...io, env: { PATH: `${staleDir}${delimiter}${SHIMS}${delimiter}${process.env.PATH}` } };
+
+  assert.equal(await run(["codex", "work", "23", "--dry-run"], codexIo), 1);
+  const text = out.join("\n");
+  assert.match(text, /ERR quest-cli-path:/);
+  assert.match(text, /not printing a handoff because doctor still reports setup problems/);
+  assert.doesNotMatch(text, /agent_type: quest-executor/);
+  assert.doesNotMatch(text, /Headless fallback command:/);
 });
 
 test("commands without a store exit 3 with init hint", async () => {
@@ -497,7 +621,7 @@ test("commands without a store exit 3 with init hint", async () => {
 
 test("full lifecycle through the CLI, with --json shapes", async () => {
   assert.equal(await run(["init"], io), 0);
-  assert.match(out.join("\n"), /Store created/);
+  assert.match(out.join("\n"), /Store ready: local backend/);
 
   out.length = 0;
   assert.equal(await run([...CREATE, "--json"], io), 0);
@@ -523,15 +647,74 @@ test("full lifecycle through the CLI, with --json shapes", async () => {
   assert.equal(await run(["lint", "--all"], io), 0);
 });
 
+test("lint --all reports scalar depends_on without an internal graph crash", async () => {
+  assert.equal(await run(["init"], io), 0);
+  out.length = 0;
+  assert.equal(await run([...CREATE, "--json"], io), 0);
+  const created = JSON.parse(out[0]);
+  writeFileSync(created.path, readFileSync(created.path, "utf8").replace("updated:", "depends_on: 1\nupdated:"));
+
+  out.length = 0;
+  err.length = 0;
+  assert.equal(await run(["lint", "--all"], io), 5);
+  const text = err.join("\n");
+  assert.match(text, /depends_on must be a list of quest ids/);
+  assert.doesNotMatch(text, /TypeError|is not iterable/);
+});
+
+test("list --queue blocks records with malformed depends_on metadata", async () => {
+  assert.equal(await run(["init"], io), 0);
+  out.length = 0;
+  assert.equal(await run([...CREATE, "--json"], io), 0);
+  const created = JSON.parse(out[0]);
+  writeFileSync(created.path, readFileSync(created.path, "utf8").replace("updated:", "depends_on: 1\nupdated:"));
+
+  out.length = 0;
+  assert.equal(await run(["list", "--queue", "--json"], io), 0);
+  const queue = JSON.parse(out[0]);
+  assert.deepEqual(queue.worker_ready.map((q) => q.id), []);
+  assert.deepEqual(queue.inline_close_ready_epics.map((q) => q.id), []);
+  assert.deepEqual(queue.blocked.map((b) => b.quest.id), [created.id]);
+  assert.deepEqual(queue.blocked[0].reasons, ["malformed depends_on: must be a list of quest ids"]);
+});
+
 test("bare quest with a store shows the overview", async () => {
   await run(["init"], io);
   await run(CREATE, io);
+  await run(["create", "--title", "Blocked quest", "--objective", "Expose blocked work in the dashboard.", "--done-when", "dashboard shows blocked quest", "--validation", "npm test"], io);
+  await run(["start", "2"], io);
+  await run(["checkpoint", "2", "--status", "blocked", "--summary", "blocked on decision", "--validation", "same error twice"], io);
+  writeFileSync(join(cwd, ".quests", "runs.ndjson"), JSON.stringify({ event: "run_started", run_id: "r1", quest: 2, worker: "codex" }) + "\n");
   out.length = 0;
   assert.equal(await run([], io), 0);
   const text = out.join("\n");
   assert.match(text, /1 todo/);
-  assert.match(text, /Ready to work/);
+  assert.match(text, /1 blocked/);
+  assert.match(text, /Active runs: 1/);
+  assert.match(text, /In flight \/ blocked/);
+  assert.match(text, /2\. \[blocked\] \[p2\] Blocked quest/);
+  assert.match(text, /Ready work/);
   assert.match(text, /Demo quest/);
+  assert.match(text, /Next: `quest runs --active`/);
+});
+
+test("list --queue exposes inline-close-ready epics without list --ready dispatchability", async () => {
+  await run(["init"], io);
+  await run([...CREATE, "--title", "Epic"], io); // #1
+  await run([...CREATE, "--title", "Child", "--parent", "1"], io); // #2
+  await run(["start", "2"], io);
+  await run(["checkpoint", "2", "--status", "complete", "--summary", "child done", "--validation", "`npm test` → green"], io);
+
+  out.length = 0;
+  assert.equal(await run(["list", "--ready", "--json"], io), 0);
+  assert.deepEqual(JSON.parse(out[0]).map((q) => q.id), []);
+
+  out.length = 0;
+  assert.equal(await run(["list", "--queue", "--json"], io), 0);
+  const queue = JSON.parse(out[0]);
+  assert.deepEqual(queue.worker_ready.map((q) => q.id), []);
+  assert.deepEqual(queue.inline_close_ready_epics.map((q) => q.id), [1]);
+  assert.deepEqual(queue.blocked, []);
 });
 
 test("unknown quest id exits 4", async () => {

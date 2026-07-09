@@ -77,6 +77,10 @@ function recordText() {
   return local.loadQuest(storeDir, 1).text;
 }
 
+function codexCalls() {
+  return readFileSync(scenarioPath + ".codex.calls.jsonl", "utf8").trim().split("\n").map((l) => JSON.parse(l));
+}
+
 test("happy path: shim records complete → exit 0 + full journal", async () => {
   await createQuest("claude");
   writeScenario({ sessions: ["complete"], cost_usd: 0.05 });
@@ -158,6 +162,40 @@ test("token budget: exceeding --max-tokens → blocked, exit 11 (governs codex-s
   assert.match(recordText(), /token budget exhausted/);
 });
 
+test("numeric runner controls reject invalid values before spawning a worker", async () => {
+  await createQuest("claude");
+  writeScenario({ sessions: ["complete"] });
+
+  for (const [flag, value] of [
+    ["--max-iterations", "abc"],
+    ["--max-cost", "NaN"],
+    ["--max-tokens", "1.5"],
+    ["--session-timeout", "Infinity"],
+  ]) {
+    const { io, err } = runnerIo();
+    const code = await runnerRun(["1", flag, value], io);
+    assert.equal(code, 2, `${flag} should be a usage error`);
+    assert.match(err.join("\n"), new RegExp(flag));
+    assert.equal(local.loadQuest(storeDir, 1).front.status, "todo", `${flag} must not start the quest`);
+  }
+
+  assert.ok(!existsSync(scenarioPath + ".claude.calls.jsonl"), "invalid numeric controls must not spawn the worker");
+  assert.ok(!existsSync(join(storeDir, "runs.ndjson")), "invalid numeric controls must not start a run journal");
+});
+
+test("--ready --parallel rejects invalid values before spawning a worker", async () => {
+  await createQuest("claude");
+  writeScenario({ sessions: ["complete"] });
+  const { io, err } = runnerIo();
+
+  const code = await runnerRun(["--ready", "--parallel", "two"], io);
+  assert.equal(code, 2);
+  assert.match(err.join("\n"), /--parallel must be a positive integer/);
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "todo");
+  assert.ok(!existsSync(scenarioPath + ".claude.calls.jsonl"), "invalid --parallel must not spawn the worker");
+  assert.ok(!existsSync(join(storeDir, "runs.ndjson")), "invalid --parallel must not start a run journal");
+});
+
 test("notify runs with env vars on run end (asserted via a written file)", async () => {
   await createQuest("claude");
   writeScenario({ sessions: ["complete"], cost_usd: 0.05 });
@@ -212,13 +250,52 @@ test("codex: require goal mode triggers exactly one corrective resume", async ()
   assert.equal(code, 0);
   assert.equal(local.loadQuest(storeDir, 1).front.status, "complete");
 
-  const calls = readFileSync(scenarioPath + ".codex.calls.jsonl", "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  const calls = codexCalls();
   assert.equal(calls.length, 2, "codex should be called twice: initial + one corrective resume");
   assert.equal(calls[0].isResume, false);
   assert.equal(calls[1].isResume, true);
+  assert.equal(calls[1].argv[2], "th-xyz", "corrective resume should target the parsed session id");
   assert.match(calls[1].argv.join(" "), /narrated it instead/);
   assert.match(calls[1].argv.join(" "), /create_goal tool now/);
   assert.equal(calls[1].argv.includes("-C"), false, "codex exec resume does not support -C/--cd");
+});
+
+test("codex: continuation resume uses the parsed session id", async () => {
+  await createQuest("codex");
+  writeScenario({
+    initial: { createGoal: true },
+    resume: { createGoal: true, checkpoint: "complete" },
+    thread_id: "th-continuation",
+  });
+  const { io } = runnerIo();
+
+  const code = await runnerRun(["1", "--codex-goal-mode", "require"], io);
+  assert.equal(code, 0);
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "complete");
+
+  const calls = codexCalls();
+  assert.equal(calls.length, 2, "codex should continue in one resume after a no-checkpoint initial segment");
+  assert.equal(calls[1].isResume, true);
+  assert.equal(calls[1].argv[2], "th-continuation", "continuation resume should target the parsed session id");
+});
+
+test("codex: resume falls back to --last when no session id is parsed", async () => {
+  await createQuest("codex");
+  writeScenario({
+    initial: { createGoal: false },
+    resume: { createGoal: true, checkpoint: "complete" },
+    omit_thread_id: true,
+  });
+  const { io } = runnerIo();
+
+  const code = await runnerRun(["1", "--codex-goal-mode", "require"], io);
+  assert.equal(code, 0);
+  assert.equal(local.loadQuest(storeDir, 1).front.status, "complete");
+
+  const calls = codexCalls();
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].isResume, true);
+  assert.equal(calls[1].argv[2], "--last", "resume should use --last only when no session id exists");
 });
 
 test("codex: require goal mode blocks when goal tools remain unavailable", async () => {
@@ -411,18 +488,19 @@ test("--ready never auto-dispatches an epic — no run_started for it, stderr sa
   await createQuest("claude", [], "Epic parent"); // #1
   await createQuest("claude", ["--parent", "1"], "Only child"); // #2
   // Complete the child so the epic's children are all terminal and the epic
-  // itself becomes "ready" — this is exactly the case --ready must still skip.
+  // becomes inline-close-ready — this is exactly the case --ready must still skip.
   local.startQuest(storeDir, 2);
   local.appendCheckpoint(storeDir, 2, { quest_status: "complete", iteration: 1, changed: "done", validation_summary: "`ok`" });
-  assert.deepEqual(local.readyQuests(storeDir).map((q) => q.id), [1], "epic is the only ready quest");
+  assert.deepEqual(local.readyQuests(storeDir).map((q) => q.id), [], "epic is not worker-ready");
+  assert.deepEqual(local.queueState(storeDir).inlineCloseReadyEpics.map((q) => q.id), [1], "epic is inline-close-ready");
 
   const { io, err } = runnerIo();
   const code = await runnerRun(["--ready"], io);
   assert.equal(code, 0);
   // The runner started no worker run for the epic.
   assert.ok(!runsEvents().some((e) => e.event === "run_started" && e.quest === 1), "epic must not be dispatched");
-  // The skip line names it as an epic and points at the orchestrate skill.
-  assert.match(err.join("\n"), /is an epic/);
+  // The skip line names it as an inline-close-ready epic and points at the orchestrate skill.
+  assert.match(err.join("\n"), /inline-close-ready epic/);
   // Direct dispatch stays allowed: quest-run <id> on the epic runs it (the
   // shim drives it to complete), proving the block is --ready-only.
   writeScenario({ sessions: ["complete"], questId: 1 });
