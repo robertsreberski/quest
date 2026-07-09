@@ -25,7 +25,7 @@ trails, and escalations only where a human ruling is genuinely needed.
    `inline_close_ready_epics` is the set of epics you close yourself after
    verifying children and the epic validation loop. `quest list --ready --json`
    remains a dispatch-only shortcut for `worker_ready`.
-   When a checkout, plugin cache, and installed package may differ, run the
+   When the checkout, plugin cache, and installed package may differ, run the
    checkout binary (`./bin/quest`) or verify `PATH` with `quest --version`
    before trusting queue or dispatch behavior.
    For an implementation accepted from `$quest:plan` in Codex Plan Mode, stay in

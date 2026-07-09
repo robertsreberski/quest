@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, delimiter } from "node:path";
+import { spawnSync } from "node:child_process";
 import { run } from "../lib/cli.mjs";
 
+const REPO_ROOT = new URL("../", import.meta.url).pathname;
 const SNAP = new URL("./snapshots/", import.meta.url).pathname;
 const SHIMS = new URL("./shims/", import.meta.url).pathname;
 
@@ -496,6 +498,28 @@ test("codex doctor reports quest-run fallback when Codex multi_agent is disabled
   assert.match(result.recommended_path.command, /quest-run <id> --worker codex --codex-goal-mode require/);
 });
 
+test("codex doctor quotes quest-run fallback commands from plugin paths with spaces", () => {
+  const linkedRoot = join(cwd, "quest package with spaces");
+  const project = join(cwd, "project");
+  const script = join(cwd, "doctor-space-path.mjs");
+  symlinkSync(REPO_ROOT, linkedRoot, "dir");
+  mkdirSync(project);
+  writeFileSync(script, `
+import { delimiter } from "node:path";
+import { pathToFileURL } from "node:url";
+const moduleUrl = pathToFileURL(process.argv[2] + "/lib/codex-native.mjs").href;
+const { installAgents, doctor } = await import(moduleUrl);
+const env = { ...process.env, PATH: process.argv[4] + delimiter + process.env.PATH, QUEST_SHIM_MULTI_AGENT: "false" };
+installAgents({ scope: "project", cwd: process.argv[3], env });
+const result = doctor({ cwd: process.argv[3], env });
+process.stdout.write(result.recommended_path.command + "\\n");
+`);
+
+  const result = spawnSync(process.execPath, ["--preserve-symlinks", script, linkedRoot, project, SHIMS], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout.trim(), /^'.*quest package with spaces\/bin\/quest-run' <id> --worker codex --codex-goal-mode require$/);
+});
+
 test("codex doctor fails when Codex goals are disabled even if multi_agent is enabled", async () => {
   assert.equal(await run(["codex", "install-agents", "--scope", "project"], io), 0);
   out.length = 0;
@@ -636,6 +660,22 @@ test("lint --all reports scalar depends_on without an internal graph crash", asy
   const text = err.join("\n");
   assert.match(text, /depends_on must be a list of quest ids/);
   assert.doesNotMatch(text, /TypeError|is not iterable/);
+});
+
+test("list --queue blocks records with malformed depends_on metadata", async () => {
+  assert.equal(await run(["init"], io), 0);
+  out.length = 0;
+  assert.equal(await run([...CREATE, "--json"], io), 0);
+  const created = JSON.parse(out[0]);
+  writeFileSync(created.path, readFileSync(created.path, "utf8").replace("updated:", "depends_on: 1\nupdated:"));
+
+  out.length = 0;
+  assert.equal(await run(["list", "--queue", "--json"], io), 0);
+  const queue = JSON.parse(out[0]);
+  assert.deepEqual(queue.worker_ready.map((q) => q.id), []);
+  assert.deepEqual(queue.inline_close_ready_epics.map((q) => q.id), []);
+  assert.deepEqual(queue.blocked.map((b) => b.quest.id), [created.id]);
+  assert.deepEqual(queue.blocked[0].reasons, ["malformed depends_on: must be a list of quest ids"]);
 });
 
 test("bare quest with a store shows the overview", async () => {
