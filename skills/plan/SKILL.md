@@ -27,12 +27,13 @@ extra context.
 In Codex Plan Mode, do **not** implement product code after the user accepts a
 plan. The same parent agent/session that processes `$quest:plan` owns the
 handoff: make the quest records real, then adopt `$quest:orchestrate` by
-default.
+default when the user asks to implement the plan. The parent session never uses
+`$quest:work <id>` after a Plan Mode handoff unless the user explicitly asks to.
 
 1. Create or confirm the quest records with `quest create` and `quest lint`.
 2. If the user accepted a plan and asked to implement it, the same parent
    session becomes `$quest:orchestrate`, not `$quest:work`. Do not start editing
-   product code in the parent session.
+   product code in the parent session. Read skill `$quest:orchestrate` and follow its rules for dispatching workers and closing epics inline.
 3. In `$quest:orchestrate`, inspect `quest list --queue --json`, set the
    orchestrator goal for the wave, then spawn goal-mode workers for
    `worker_ready` quests.
@@ -112,4 +113,4 @@ quest lint 12   # always, before dispatch
 
 **Next:** dispatch with `$quest:orchestrate`. Only work it yourself via
 `$quest:work <id>` for genuinely small inline work outside Plan Mode and outside
-an accepted Plan Mode handoff. Rules and vocabulary: `$quest:protocol`.
+an accepted Plan Mode handoff, when user explicitly asked for it. Rules and vocabulary: `$quest:protocol`.
