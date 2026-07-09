@@ -623,6 +623,21 @@ test("full lifecycle through the CLI, with --json shapes", async () => {
   assert.equal(await run(["lint", "--all"], io), 0);
 });
 
+test("lint --all reports scalar depends_on without an internal graph crash", async () => {
+  assert.equal(await run(["init"], io), 0);
+  out.length = 0;
+  assert.equal(await run([...CREATE, "--json"], io), 0);
+  const created = JSON.parse(out[0]);
+  writeFileSync(created.path, readFileSync(created.path, "utf8").replace("updated:", "depends_on: 1\nupdated:"));
+
+  out.length = 0;
+  err.length = 0;
+  assert.equal(await run(["lint", "--all"], io), 5);
+  const text = err.join("\n");
+  assert.match(text, /depends_on must be a list of quest ids/);
+  assert.doesNotMatch(text, /TypeError|is not iterable/);
+});
+
 test("bare quest with a store shows the overview", async () => {
   await run(["init"], io);
   await run(CREATE, io);
