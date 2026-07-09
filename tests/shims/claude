@@ -92,7 +92,7 @@ function runWithoutScenario(args) {
   if (args.join(" ") === "plugin list --json") {
     const state = readState();
     const pluginMissing = process.env.QUEST_SHIM_CLAUDE_PLUGIN_MISSING === "true" && !state.claudePluginInstalled;
-    const pluginVersion = state.claudePluginVersion || process.env.QUEST_SHIM_CLAUDE_PLUGIN_VERSION || "0.3.5";
+    const pluginVersion = state.claudePluginVersion || process.env.QUEST_SHIM_CLAUDE_PLUGIN_VERSION || "0.3.6";
     process.stdout.write(JSON.stringify(pluginMissing ? [] : [
       {
         id: "quest@quest",
@@ -106,13 +106,13 @@ function runWithoutScenario(args) {
   }
 
   if (args.join(" ") === "plugin update quest@quest") {
-    writeState({ claudePluginInstalled: true, claudePluginVersion: "0.3.5" });
+    writeState({ claudePluginInstalled: true, claudePluginVersion: "0.3.6" });
     process.stdout.write("Updated quest@quest\n");
     process.exit(0);
   }
 
   if (args.join(" ") === "plugin install quest@quest") {
-    writeState({ claudePluginInstalled: true, claudePluginVersion: "0.3.5" });
+    writeState({ claudePluginInstalled: true, claudePluginVersion: "0.3.6" });
     process.stdout.write("Installed quest@quest\n");
     process.exit(0);
   }
